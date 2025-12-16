@@ -3,7 +3,7 @@ using UnityEngine;
 using UnityEngine.Splines;
 
 [RequireComponent(typeof(CharacterController))]
-public class TrackRunner : MonoBehaviour
+public class TrackRunner : MonoBehaviour, IRunResettable
 {
     public SplineContainer track;
     public SplineGenerator generator;
@@ -154,6 +154,40 @@ public class TrackRunner : MonoBehaviour
         {
             ObstacleHit?.Invoke(obstacle);
             Debug.Log($"Hit obstacle at s={obstacle.SGlobal:F1} lane={obstacle.Lane}");
+        }
+    }
+
+    public void ResetRun()
+    {
+        if (!track) return;
+        if (!cc) cc = GetComponent<CharacterController>();
+        if (!generator) generator = track.GetComponent<SplineGenerator>();
+
+        s = 0f;
+        lane = 0;
+        x = LaneOffset(lane);
+        xVel = 0f;
+        yVel = 0f;
+        jumpVel = 0f;
+        jumpOffset = 0f;
+        lastUp = Vector3.up;
+
+        Vector3 pos = default, fwd = default, up = default, right = default;
+        TrackSample.At(track, 0f, track.Spline.Closed, ref pos, ref fwd, ref up, ref right, ref lastUp);
+
+        Vector3 startPos = pos + right * x + up * hover;
+        Quaternion startRot = Quaternion.LookRotation(fwd, up);
+
+        if (cc)
+        {
+            bool wasEnabled = cc.enabled;
+            cc.enabled = false;
+            transform.SetPositionAndRotation(startPos, startRot);
+            cc.enabled = wasEnabled;
+        }
+        else
+        {
+            transform.SetPositionAndRotation(startPos, startRot);
         }
     }
 }

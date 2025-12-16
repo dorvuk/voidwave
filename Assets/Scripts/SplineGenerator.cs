@@ -2,7 +2,7 @@ using UnityEngine;
 using UnityEngine.Splines;
 
 [RequireComponent(typeof(SplineContainer))]
-public class SplineGenerator : MonoBehaviour
+public class SplineGenerator : MonoBehaviour, IRunResettable
 {
     public Transform player;
 
@@ -140,5 +140,30 @@ public class SplineGenerator : MonoBehaviour
             TangentOut = tan
         };
         spline.Add(k);
+    }
+
+    public void ResetRun()
+    {
+        if (spline == null)
+        {
+            var container = GetComponent<SplineContainer>();
+            if (container) spline = container.Spline;
+        }
+
+        if (spline == null)
+        {
+            Debug.LogWarning("SplineGenerator has no Spline assigned; cannot ResetRun.", this);
+            return;
+        }
+
+        if (!player)
+        {
+            var p = GameObject.FindGameObjectWithTag("Player");
+            if (p) player = p.transform;
+        }
+
+        seedA = Random.Range(0f, 9999f);
+        seedB = Random.Range(0f, 9999f);
+        BuildInitial();
     }
 }

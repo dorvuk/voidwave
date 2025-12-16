@@ -2,7 +2,7 @@ using System.Collections.Generic;
 using UnityEngine;
 using UnityEngine.Splines;
 
-public class ObstacleSpawner : MonoBehaviour
+public class ObstacleSpawner : MonoBehaviour, IRunResettable
 {
     public SplineContainer track;
     public SplineGenerator generator;
@@ -128,5 +128,18 @@ public class ObstacleSpawner : MonoBehaviour
     {
         obs.gameObject.SetActive(false);
         pool.Add(obs);
+    }
+
+    public void ResetRun()
+    {
+        for (int i = active.Count - 1; i >= 0; i--)
+        {
+            var obs = active[i];
+            Release(obs);
+            active.RemoveAt(i);
+        }
+
+        if (runner) laneWidth = runner.laneWidth;
+        nextSpawnS = runner ? runner.DistanceOnTrack + spawnStart : spawnStart;
     }
 }

@@ -2,7 +2,7 @@ using System;
 using System.Collections;
 using UnityEngine;
 
-public class PlayerHealth : MonoBehaviour
+public class PlayerHealth : MonoBehaviour, IRunResettable
 {
     public int maxHealth = 2;
     public int currentHealth = 2;
@@ -105,5 +105,19 @@ public class PlayerHealth : MonoBehaviour
 
         RegenProgress = 0f;
         regenRoutine = null;
+    }
+
+    public void ResetRun()
+    {
+        if (regenRoutine != null)
+        {
+            StopCoroutine(regenRoutine);
+            regenRoutine = null;
+        }
+
+        RegenProgress = 0f;
+        invulnerableUntil = 0f;
+        currentHealth = Mathf.Clamp(maxHealth, 0, maxHealth);
+        OnHealthChanged?.Invoke(currentHealth, maxHealth, RegenProgress);
     }
 }
