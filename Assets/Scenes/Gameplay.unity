@@ -361,8 +361,8 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: 
   track: {fileID: 830585204}
-  width: 6
-  thickness: 0.05
+  width: 8
+  thickness: 1.01
   metersPerSample: 2
   minSamples: 32
   rebuildEvery: 0.2
@@ -754,6 +754,62 @@ MonoBehaviour:
   localOffset: {x: 0, y: 2.2, z: -6.5}
   follow: 7
   turn: 10
+--- !u!1 &2065703093
+GameObject:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  serializedVersion: 6
+  m_Component:
+  - component: {fileID: 2065703094}
+  - component: {fileID: 2065703095}
+  m_Layer: 0
+  m_Name: ObstacleSpawner
+  m_TagString: Untagged
+  m_Icon: {fileID: 0}
+  m_NavMeshLayer: 0
+  m_StaticEditorFlags: 0
+  m_IsActive: 1
+--- !u!4 &2065703094
+Transform:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 2065703093}
+  serializedVersion: 2
+  m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
+  m_LocalPosition: {x: 0, y: 0, z: 0}
+  m_LocalScale: {x: 1, y: 1, z: 1}
+  m_ConstrainProportionsScale: 0
+  m_Children: []
+  m_Father: {fileID: 0}
+  m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
+--- !u!114 &2065703095
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 2065703093}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 67e2905b42a10104db95965c86dd0666, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: 
+  track: {fileID: 830585204}
+  generator: {fileID: 830585205}
+  runner: {fileID: 1509802279}
+  obstaclePrefab: {fileID: 8227750153904352186, guid: d16b80561c9c3b44eaa3986d0b5e8eb9, type: 3}
+  spawnStart: 40
+  spawnUpTo: 160
+  despawnBehind: 40
+  minSpacing: 14
+  maxSpacing: 22
+  lanes: 2
+  laneWidth: 2.2
+  hover: 0.15
 --- !u!1660057539 &9223372036854775807
 SceneRoots:
   m_ObjectHideFlags: 0
@@ -763,3 +819,4 @@ SceneRoots:
   - {fileID: 1621196279}
   - {fileID: 1509802277}
   - {fileID: 919363140}
+  - {fileID: 2065703094}

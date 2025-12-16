@@ -1,3 +1,4 @@
+using System;
 using UnityEngine;
 using UnityEngine.Splines;
 
@@ -34,6 +35,7 @@ public class TrackRunner : MonoBehaviour
     float s;
     float x;
     float xVel;
+    public event Action<Obstacle> ObstacleHit;
 
     Vector3 lastUp = Vector3.up;
 
@@ -142,6 +144,16 @@ public class TrackRunner : MonoBehaviour
         {
             jumpOffset = 0f;
             jumpVel = 0f;
+        }
+    }
+
+    void OnControllerColliderHit(ControllerColliderHit hit)
+    {
+        var obstacle = hit.collider.GetComponentInParent<Obstacle>();
+        if (obstacle)
+        {
+            ObstacleHit?.Invoke(obstacle);
+            Debug.Log($"Hit obstacle at s={obstacle.SGlobal:F1} lane={obstacle.Lane}");
         }
     }
 }
