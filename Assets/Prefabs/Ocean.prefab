@@ -12,6 +12,7 @@ GameObject:
   - component: {fileID: 4444622847640979839}
   - component: {fileID: 1982498215815184979}
   - component: {fileID: 8009079666372753711}
+  - component: {fileID: 6169885305398299383}
   m_Layer: 0
   m_Name: Ocean
   m_TagString: Untagged
@@ -100,3 +101,20 @@ MonoBehaviour:
   waveFrequency: 0.1
   waveLength: 0.1
   waveOriginPosition: {x: 0, y: 0, z: 0}
+--- !u!114 &6169885305398299383
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1595679101978867394}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 308adc23f5ca8024ab5c4e02a34c6f04, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: 
+  target: {fileID: 0}
+  waterY: 100
+  snapSize: 25
+  followInPlayMode: 1
+  followInEditMode: 1

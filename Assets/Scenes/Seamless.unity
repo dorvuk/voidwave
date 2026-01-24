@@ -38,7 +38,7 @@ RenderSettings:
   m_ReflectionIntensity: 1
   m_CustomReflection: {fileID: 0}
   m_Sun: {fileID: 0}
-  m_IndirectSpecularColor: {r: 0.08903952, g: 0.104824275, b: 0.13430719, a: 1}
+  m_IndirectSpecularColor: {r: 0.0008236683, g: 0.004233172, b: 0.020407677, a: 1}
   m_UseRadianceAmbientProbe: 0
 --- !u!157 &3
 LightmapSettings:
@@ -989,13 +989,13 @@ Transform:
   m_PrefabAsset: {fileID: 0}
   m_GameObject: {fileID: 503027046}
   serializedVersion: 2
-  m_LocalRotation: {x: 0.40821788, y: -0.23456968, z: 0.10938163, w: 0.8754261}
-  m_LocalPosition: {x: 0, y: 3, z: 0}
+  m_LocalRotation: {x: 0.16251399, y: -0.20912126, z: -0.037867732, w: 0.96354735}
+  m_LocalPosition: {x: -34.6, y: 260.4, z: -7.8}
   m_LocalScale: {x: 1, y: 1, z: 1}
   m_ConstrainProportionsScale: 0
   m_Children: []
   m_Father: {fileID: 0}
-  m_LocalEulerAnglesHint: {x: 50, y: -30, z: 0}
+  m_LocalEulerAnglesHint: {x: 17.298, y: -25.784, z: -8.489}
 --- !u!1 &613095874
 GameObject:
   m_ObjectHideFlags: 0
@@ -1193,6 +1193,69 @@ MonoBehaviour:
   m_EditorClassIdentifier: 
   health: {fileID: 613095876}
   gameStateManager: {fileID: 1463158208}
+--- !u!1 &624858325
+GameObject:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  serializedVersion: 6
+  m_Component:
+  - component: {fileID: 624858326}
+  - component: {fileID: 624858327}
+  m_Layer: 0
+  m_Name: UnderwaterManager
+  m_TagString: Untagged
+  m_Icon: {fileID: 0}
+  m_NavMeshLayer: 0
+  m_StaticEditorFlags: 0
+  m_IsActive: 1
+--- !u!4 &624858326
+Transform:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 624858325}
+  serializedVersion: 2
+  m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
+  m_LocalPosition: {x: 0, y: 0, z: 0}
+  m_LocalScale: {x: 1, y: 1, z: 1}
+  m_ConstrainProportionsScale: 0
+  m_Children: []
+  m_Father: {fileID: 0}
+  m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
+--- !u!114 &624858327
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 624858325}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: dbcd9bda64f10744f9cd88f8e90e2250, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: 
+  waterY: 100
+  enterOffset: 0
+  transitionSpeed: 4
+  controlFog: 1
+  underwaterFogEnabled: 1
+  underwaterFogColor: {r: 0.4870197, g: 0.34709862, b: 0.9811321, a: 0.54509807}
+  underwaterFogDensity: 0.0202
+  controlAmbient: 1
+  aboveAmbient: {r: 1, g: 1, b: 1, a: 1}
+  underwaterAmbient: {r: 0.12, g: 0.2, b: 0.25, a: 1}
+  controlMainLight: 0
+  mainDirectionalLight: {fileID: 503027047}
+  aboveLightIntensity: 1
+  underwaterLightIntensity: 0.6
+  controlAudioLowpass: 1
+  aboveCutoff: 22000
+  underwaterCutoff: 900
+  controlWobble: 1
+  wobbleFadeMultiplier: 1
 --- !u!1 &818317048
 GameObject:
   m_ObjectHideFlags: 0
@@ -1548,9 +1611,7 @@ MonoBehaviour:
   gameplayCameraGO: {fileID: 107668787}
   playerRoot: {fileID: 613095875}
   menuPose: {fileID: 868488972}
-  tempOceanPrefab: {fileID: 1595679101978867394, guid: 485e3ea4ee8c9d34aba8fc63fb8c34db, type: 3}
-  tempOceanHeightOffset: 100
-  tempOceanLifetimeSafety: 10
+  surfaceHeightOffset: 100
   gameplayBehavioursToEnable:
   - {fileID: 1618867860}
   - {fileID: 613095877}
@@ -2417,6 +2478,10 @@ PrefabInstance:
       propertyPath: m_Name
       value: Ocean
       objectReference: {fileID: 0}
+    - target: {fileID: 6169885305398299383, guid: 485e3ea4ee8c9d34aba8fc63fb8c34db, type: 3}
+      propertyPath: target
+      value: 
+      objectReference: {fileID: 613095875}
     m_RemovedComponents: []
     m_RemovedGameObjects: []
     m_AddedGameObjects: []
@@ -2438,3 +2503,4 @@ SceneRoots:
   - {fileID: 1463158209}
   - {fileID: 868488972}
   - {fileID: 818317049}
+  - {fileID: 624858326}
