@@ -24,9 +24,13 @@ public class UnderwaterWobbleEffect : ScriptableRendererFeature
         if (shader != null)
             material = CoreUtils.CreateEngineMaterial(shader);
 
+        var passEvent = settings.renderPassEvent;
+        if (passEvent < RenderPassEvent.AfterRenderingTransparents)
+            passEvent = RenderPassEvent.AfterRenderingTransparents;
+
         pass = new UnderwaterPass(material)
         {
-            renderPassEvent = settings.renderPassEvent
+            renderPassEvent = passEvent
         };
     }
 

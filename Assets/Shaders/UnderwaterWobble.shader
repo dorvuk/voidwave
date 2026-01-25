@@ -33,6 +33,27 @@ Shader "Hidden/UnderwaterWobble"
             float4 _UnderwaterGodRayParams; // intensity, decay, weight, density
             float4 _UnderwaterGodRayParams2; // samples, speed, unused, unused
 
+            float Hash12(float2 p)
+            {
+                float3 p3 = frac(float3(p.xyx) * 0.1031);
+                p3 += dot(p3, p3.yzx + 33.33);
+                return frac((p3.x + p3.y) * p3.z);
+            }
+
+            float Noise(float2 p)
+            {
+                float2 i = floor(p);
+                float2 f = frac(p);
+
+                float a = Hash12(i);
+                float b = Hash12(i + float2(1, 0));
+                float c = Hash12(i + float2(0, 1));
+                float d = Hash12(i + float2(1, 1));
+
+                float2 u = f * f * (3.0 - 2.0 * f);
+                return lerp(lerp(a, b, u.x), lerp(c, d, u.x), u.y);
+            }
+
             float2 DistortionOffset(float2 uv, float time)
             {
                 float strength = _UnderwaterDistortionParams.x;
@@ -103,8 +124,8 @@ Shader "Hidden/UnderwaterWobble"
                     illuminationDecay *= decay;
                 }
 
-                float shimmer = lerp(0.85, 1.15, sin((uv.x + uv.y + time * speed) * 6.2831) * 0.5 + 0.5);
-                float scatter = ray * weight * intensity * shimmer;
+                float noiseMod = lerp(0.75, 1.25, Noise(uv * 6.0 + time * speed));
+                float scatter = ray * weight * intensity * noiseMod;
                 return _UnderwaterGodRayColor.rgb * scatter * fogFactor;
             }
 
@@ -118,17 +139,23 @@ Shader "Hidden/UnderwaterWobble"
 
                 float time = _Time.y;
                 float2 offset = DistortionOffset(uv, time) * fade;
-                float2 distortedUV = uv + offset;
+                float2 distortedUV = saturate(uv + offset);
 
                 float3 color = SAMPLE_TEXTURE2D_X(_BlitTexture, sampler_BlitTexture, distortedUV).rgb;
 
                 float chroma = _UnderwaterChromaticShift * fade;
                 if (chroma > 0.0001)
                 {
-                    float2 shift = normalize(offset + 0.0001) * chroma;
-                    float r = SAMPLE_TEXTURE2D_X(_BlitTexture, sampler_BlitTexture, distortedUV + shift).r;
-                    float g = SAMPLE_TEXTURE2D_X(_BlitTexture, sampler_BlitTexture, distortedUV).g;
-                    float b = SAMPLE_TEXTURE2D_X(_BlitTexture, sampler_BlitTexture, distortedUV - shift).b;
+                    float2 shiftDir = normalize(offset + 0.0001);
+                    float2 shift = shiftDir * chroma;
+
+                    float2 uvR = saturate(distortedUV + shift);
+                    float2 uvG = distortedUV;
+                    float2 uvB = saturate(distortedUV - shift);
+
+                    float r = SAMPLE_TEXTURE2D_X(_BlitTexture, sampler_BlitTexture, uvR).r;
+                    float g = SAMPLE_TEXTURE2D_X(_BlitTexture, sampler_BlitTexture, uvG).g;
+                    float b = SAMPLE_TEXTURE2D_X(_BlitTexture, sampler_BlitTexture, uvB).b;
                     color = float3(r, g, b);
                 }
 
@@ -139,7 +166,8 @@ Shader "Hidden/UnderwaterWobble"
                 if (_UnderwaterFogEnabled > 0.5)
                 {
                     fogFactor = ComputeFog(linearDepth) * fade;
-                    color = lerp(color, _UnderwaterFogColor.rgb, fogFactor);
+                    float3 fogColor = _UnderwaterFogColor.rgb;
+                    color = 1.0 - (1.0 - color) * (1.0 - fogColor * fogFactor);
                 }
 
                 float3 rays = ComputeGodRays(uv, max(fogFactor, fade * 0.25), time) * fade;

@@ -72,6 +72,8 @@ public class UnderwaterManager : MonoBehaviour
     {
         RenderPipelineManager.beginCameraRendering -= OnBeginCameraRendering;
         Shader.SetGlobalFloat(UnderwaterBlendId, 0f);
+        Shader.SetGlobalFloat(UnderwaterFogEnabledId, 0f);
+        Shader.SetGlobalFloat(UnderwaterGodRayEnabledId, 0f);
     }
 
     void OnBeginCameraRendering(ScriptableRenderContext context, Camera cam)
@@ -105,7 +107,7 @@ public class UnderwaterManager : MonoBehaviour
             : 0f;
         Shader.SetGlobalFloat(UnderwaterBlendId, effectBlend);
 
-        Shader.SetGlobalFloat(UnderwaterFogEnabledId, fogEnabled ? 1f : 0f);
+        Shader.SetGlobalFloat(UnderwaterFogEnabledId, (fogEnabled && isUnderwater) ? 1f : 0f);
         Shader.SetGlobalColor(UnderwaterFogColorId, fogColor);
 
         float fogEnd = Mathf.Max(fogEndDistance, fogStartDistance + 0.01f);
@@ -118,7 +120,7 @@ public class UnderwaterManager : MonoBehaviour
             new Vector4(distortionStrength, distortionScale, distortionSpeed, 0f));
         Shader.SetGlobalFloat(UnderwaterChromaticShiftId, chromaticShift);
 
-        Shader.SetGlobalFloat(UnderwaterGodRayEnabledId, godRaysEnabled ? 1f : 0f);
+        Shader.SetGlobalFloat(UnderwaterGodRayEnabledId, (godRaysEnabled && isUnderwater) ? 1f : 0f);
         Shader.SetGlobalColor(UnderwaterGodRayColorId, godRayColor);
         Shader.SetGlobalVector(
             UnderwaterGodRayParamsId,
