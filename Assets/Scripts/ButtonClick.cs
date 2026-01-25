@@ -12,13 +12,13 @@ public class ButtonClick : MonoBehaviour, IPointerEnterHandler, IPointerClickHan
     public void OnPointerEnter(PointerEventData eventData)
     {
         if (!IsInteractable()) return;
-        AudioManager.I.PlaySfx(SfxId.ButtonHover);
+        AudioManager.I.PlayUiSfx(SfxId.ButtonHover);
     }
 
     public void OnPointerClick(PointerEventData eventData)
     {
         if (!IsInteractable()) return;
-        AudioManager.I.PlaySfx(SfxId.ButtonClick);
+        AudioManager.I.PlayUiSfx(SfxId.ButtonClick);
     }
 
     private bool IsInteractable() => selectable != null && selectable.IsInteractable();

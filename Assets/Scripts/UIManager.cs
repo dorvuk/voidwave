@@ -34,6 +34,10 @@ public class UIManager : MonoBehaviour
     [Header("Gameplay")]
     [SerializeField] private GameplaySimulator gameplaySimulator;
 
+    [Header("Onboarding")]
+    public CanvasGroup onboarding;
+    private readonly string onboardingSeenKey = "OnboardingSeen";
+
     // FSM
     private enum UIState
     {
@@ -69,6 +73,7 @@ public class UIManager : MonoBehaviour
         InitCanvas(gameplay, false);
         InitCanvas(gameOver, false);
         InitCanvas(pause, false);
+        InitCanvas(onboarding, false);
 
         InitCanvas(titleText, false);
         InitCanvas(pressSpaceText, false);
@@ -222,10 +227,6 @@ public class UIManager : MonoBehaviour
             case UIState.QuitConfirm_Open:
                 TransitionTo(UIState.MainMenu_IdleVisible);
                 break;
-
-            case UIState.Pause:
-                ResumeFromPause();
-                break;
         }
     }
 
@@ -233,12 +234,14 @@ public class UIManager : MonoBehaviour
 
     public void NotifyPaused()
     {
+        AudioManager.I.SetPausedAudio(true);
         if (state == UIState.Gameplay)
             TransitionTo(UIState.Pause);
     }
 
     public void NotifyResumed()
     {
+        AudioManager.I.SetPausedAudio(false);
         if (state == UIState.Pause)
             TransitionTo(UIState.Gameplay);
     }
@@ -272,7 +275,8 @@ public class UIManager : MonoBehaviour
 
     public void ReturnToMainMenu()
     {
-        AudioManager.I?.PlaySfx(SfxId.Surface);
+        AudioManager.I.SetPausedAudio(false);
+        AudioManager.I.PlaySfx(SfxId.Surface);
 
         StopGameOverReturn();
 
@@ -403,6 +407,7 @@ public class UIManager : MonoBehaviour
     {
         StopGameOverReturn();
         SetCanvasActive(pause, false);
+        TryShowOnboardingOnce();
     }
 
     private IEnumerator Enter_Pause()
@@ -629,4 +634,52 @@ public class UIManager : MonoBehaviour
         cg.blocksRaycasts = false;
         cg.gameObject.SetActive(false);
     }
+
+    public void RestartRun()
+{
+    StopGameOverReturn();
+
+    Time.timeScale = 1f;
+
+    gameplaySimulator.EndGameplay();
+
+    SetCanvasActive(pause, false);
+    SetCanvasActive(gameOver, false);
+
+    SetCanvasActive(mainMenu, false);
+    SetCanvasActive(gameplay, true);
+
+    TransitionTo(UIState.Transition_ToGameplay);
+
+    AudioManager.I.PlaySfx(SfxId.Submerge);
+
+    gameplaySimulator.BeginGameplay();
 }
+
+    private void TryShowOnboardingOnce()
+    {
+        if (onboarding == null) return;
+
+        if (PlayerPrefs.GetInt(onboardingSeenKey, 0) == 1)
+            return;
+
+        PlayerPrefs.SetInt(onboardingSeenKey, 1);
+        PlayerPrefs.Save();
+
+        StartCoroutine(OnboardingRoutine());
+    }
+
+    private IEnumerator OnboardingRoutine()
+    {
+        onboarding.gameObject.SetActive(true);
+        onboarding.blocksRaycasts = false;
+        onboarding.interactable = false;
+
+        FadeIn(onboarding, fastFadeDuration, allowInteractionWhileVisible: false);
+
+        yield return new WaitForSecondsRealtime(6f);
+
+        FadeOut(onboarding, fastFadeDuration, disableOnZero: true);
+    }
+}
+

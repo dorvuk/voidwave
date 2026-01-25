@@ -28,7 +28,7 @@ public class GameplaySimulator : MonoBehaviour
         if (Input.GetKeyDown(KeyCode.D))
             SimulateDeath();
 
-        if (Input.GetKeyDown(KeyCode.F))
+        if (Input.GetKeyDown(KeyCode.Escape))
             TogglePause();
     }
 

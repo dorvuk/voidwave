@@ -54,9 +54,10 @@ public class ScoreManager : MonoBehaviour
 
     void Update()
     {
-        if (Input.GetKeyDown(KeyCode.G))
+        if (Input.GetKeyDown(KeyCode.G)) // TODO: FOR TESTING PURPOSES. Disable when shipping.
         {
             PlayerPrefs.DeleteKey(highScoreKey);
+            PlayerPrefs.DeleteKey("OnboardingSeen");
             PlayerPrefs.Save();
 
             HighScore = 0;
