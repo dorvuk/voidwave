@@ -38,7 +38,7 @@ RenderSettings:
   m_ReflectionIntensity: 1
   m_CustomReflection: {fileID: 0}
   m_Sun: {fileID: 0}
-  m_IndirectSpecularColor: {r: 0.00082351797, g: 0.0042330846, b: 0.02040767, a: 1}
+  m_IndirectSpecularColor: {r: 0.79987645, g: 0.8866316, b: 0.96955097, a: 1}
   m_UseRadianceAmbientProbe: 0
 --- !u!157 &3
 LightmapSettings:
@@ -1035,13 +1035,13 @@ Transform:
   m_PrefabAsset: {fileID: 0}
   m_GameObject: {fileID: 503027046}
   serializedVersion: 2
-  m_LocalRotation: {x: 0.16251399, y: -0.20912126, z: -0.037867732, w: 0.96354735}
+  m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
   m_LocalPosition: {x: -34.6, y: 260.4, z: -7.8}
   m_LocalScale: {x: 1, y: 1, z: 1}
   m_ConstrainProportionsScale: 0
   m_Children: []
   m_Father: {fileID: 0}
-  m_LocalEulerAnglesHint: {x: 17.298, y: -25.784, z: -8.489}
+  m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
 --- !u!114 &503027049
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -1833,6 +1833,7 @@ GameObject:
   - component: {fileID: 1513365802}
   - component: {fileID: 1513365800}
   - component: {fileID: 1513365804}
+  - component: {fileID: 1513365805}
   m_Layer: 0
   m_Name: OrbitingCamera
   m_TagString: MainCamera
@@ -1975,6 +1976,14 @@ MonoBehaviour:
     m_MipBias: 0
     m_VarianceClampScale: 0.9
     m_ContrastAdaptiveSharpening: 0
+--- !u!81 &1513365805
+AudioListener:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1513365799}
+  m_Enabled: 1
 --- !u!1 &1618867859
 GameObject:
   m_ObjectHideFlags: 0

@@ -237,12 +237,35 @@ public class GameStateManager : MonoBehaviour
 
     void ResetAllSystems()
     {
-        if (resettableSystems == null || resettableSystems.Length == 0) return;
-
-        foreach (var mb in resettableSystems)
+        if (resettableSystems != null && resettableSystems.Length > 0)
         {
-            if (!mb) continue;
+            foreach (var mb in resettableSystems)
+            {
+                if (!mb) continue;
 
+                if (mb is IRunResettable resettable)
+                {
+                    try
+                    {
+                        resettable.ResetRun();
+                    }
+                    catch (Exception ex)
+                    {
+                        Debug.LogError($"ResetRun threw on {mb.name}: {ex}", this);
+                    }
+                }
+                else
+                {
+                    Debug.LogWarning($"Reset list contains {mb.name} but it does not implement IRunResettable.", this);
+                }
+            }
+
+            return;
+        }
+
+        var resettables = FindObjectsOfType<MonoBehaviour>(true);
+        foreach (var mb in resettables)
+        {
             if (mb is IRunResettable resettable)
             {
                 try
@@ -253,10 +276,6 @@ public class GameStateManager : MonoBehaviour
                 {
                     Debug.LogError($"ResetRun threw on {mb.name}: {ex}", this);
                 }
-            }
-            else
-            {
-                Debug.LogWarning($"Reset list contains {mb.name} but it does not implement IRunResettable.", this);
             }
         }
     }
