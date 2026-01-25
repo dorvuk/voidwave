@@ -1,83 +1,179 @@
 Shader "Hidden/UnderwaterWobble"
 {
-    Properties
-    {
-        _MainTex ("Texture", 2D) = "white" {}
-        _Strength ("Strength", Range(0, 0.05)) = 0.01
-        _Scale ("Scale", Range(1, 50)) = 12
-        _Speed ("Speed", Range(0, 10)) = 1.5
-        _ColorShift ("Color Shift", Range(0, 0.01)) = 0.002
-        _Fade ("Fade", Range(0, 1)) = 1
-    }
     SubShader
     {
-        Cull Off ZWrite Off ZTest Always
-
+        Tags { "RenderPipeline"="UniversalPipeline" "RenderType"="Opaque" }
         Pass
         {
-            CGPROGRAM
-            #pragma vertex vert
-            #pragma fragment frag
-            #include "UnityCG.cginc"
+            Name "UnderwaterWobble"
+            ZWrite Off
+            ZTest Always
+            Cull Off
 
-            sampler2D _MainTex;
-            float4 _MainTex_TexelSize;
+            HLSLPROGRAM
+            #pragma vertex Vert
+            #pragma fragment Frag
+            #pragma target 3.0
 
-            float _Strength;
-            float _Scale;
-            float _Speed;
-            float _ColorShift;
-            float _Fade;
+            #include "Packages/com.unity.render-pipelines.universal/ShaderLibrary/Core.hlsl"
+            #include "Packages/com.unity.render-pipelines.core/Runtime/Utilities/Blit.hlsl"
+            #include "Packages/com.unity.render-pipelines.universal/ShaderLibrary/DeclareDepthTexture.hlsl"
+            #include "Packages/com.unity.render-pipelines.universal/ShaderLibrary/Lighting.hlsl"
 
-            struct appdata
+            SAMPLER(sampler_BlitTexture);
+
+            float _UnderwaterBlend;
+            float _UnderwaterFogEnabled;
+            float4 _UnderwaterFogColor;
+            float4 _UnderwaterFogParams; // density, start, end, power
+            float4 _UnderwaterDistortionParams; // strength, scale, speed, detail
+            float _UnderwaterChromaticShift;
+            float _UnderwaterGodRayEnabled;
+            float4 _UnderwaterGodRayColor;
+            float4 _UnderwaterGodRayParams; // intensity, decay, weight, density
+            float4 _UnderwaterGodRayParams2; // samples, speed, unused, unused
+
+            float Hash12(float2 p)
             {
-                float4 vertex : POSITION;
-                float2 uv : TEXCOORD0;
-            };
-
-            struct v2f
-            {
-                float4 vertex : SV_POSITION;
-                float2 uv : TEXCOORD0;
-            };
-
-            v2f vert(appdata v)
-            {
-                v2f o;
-                o.vertex = UnityObjectToClipPos(v.vertex);
-                o.uv = v.uv;
-                return o;
+                float3 p3 = frac(float3(p.xyx) * 0.1031);
+                p3 += dot(p3, p3.yzx + 33.33);
+                return frac((p3.x + p3.y) * p3.z);
             }
 
-            fixed4 frag(v2f i) : SV_Target
+            float Noise(float2 p)
             {
-                float t = _Time.y * _Speed;
+                float2 i = floor(p);
+                float2 f = frac(p);
 
-                float2 wave1 = float2(
-                    sin(i.uv.y * _Scale + t),
-                    cos(i.uv.x * _Scale + t)
-                );
+                float a = Hash12(i);
+                float b = Hash12(i + float2(1, 0));
+                float c = Hash12(i + float2(0, 1));
+                float d = Hash12(i + float2(1, 1));
 
-                float2 wave2 = float2(
-                    sin(i.uv.y * (_Scale * 0.7) - t * 1.2),
-                    cos(i.uv.x * (_Scale * 0.9) + t * 0.8)
-                );
-
-                float2 offset = (wave1 + wave2) * 0.5 * _Strength * _Fade;
-
-                float2 uv = i.uv + offset;
-
-                float2 shift = float2(_ColorShift, -_ColorShift) * _Fade;
-
-                fixed4 col;
-                col.r = tex2D(_MainTex, uv + shift).r;
-                col.g = tex2D(_MainTex, uv).g;
-                col.b = tex2D(_MainTex, uv - shift).b;
-                col.a = 1;
-
-                return col;
+                float2 u = f * f * (3.0 - 2.0 * f);
+                return lerp(lerp(a, b, u.x), lerp(c, d, u.x), u.y);
             }
-            ENDCG
+
+            float2 DistortionOffset(float2 uv, float time)
+            {
+                float strength = _UnderwaterDistortionParams.x;
+                float scale = _UnderwaterDistortionParams.y;
+                float speed = _UnderwaterDistortionParams.z;
+                float detail = _UnderwaterDistortionParams.w;
+
+                float2 p = uv * scale;
+                float t = time * speed;
+
+                float n1 = Noise(p + t);
+                float n2 = Noise(p * (1.7 + detail) - t * 1.3);
+                float n3 = Noise(p * (2.3 + detail) + t * 0.7);
+
+                float2 n = float2(n1 - n2, n2 - n3);
+                return n * strength;
+            }
+
+            float ComputeFog(float linearDepth)
+            {
+                float density = _UnderwaterFogParams.x;
+                float start = _UnderwaterFogParams.y;
+                float end = _UnderwaterFogParams.z;
+                float power = _UnderwaterFogParams.w;
+
+                float fogExp = 1.0 - exp(-linearDepth * density);
+                float fogRange = saturate((linearDepth - start) / max(0.001, end - start));
+                float fog = saturate(fogExp * fogRange);
+                return pow(fog, power);
+            }
+
+            float2 GetSunUV(float3 lightDir)
+            {
+                float3 sunPosWS = _WorldSpaceCameraPos + lightDir * 1000.0;
+                float4 sunPosCS = TransformWorldToHClip(sunPosWS);
+                float2 sunNdc = sunPosCS.xy / max(sunPosCS.w, 0.0001);
+                return sunNdc * 0.5 + 0.5;
+            }
+
+            float3 ComputeGodRays(float2 uv, float fogFactor, float time)
+            {
+                if (_UnderwaterGodRayEnabled <= 0.5)
+                    return 0;
+
+                Light mainLight = GetMainLight();
+                float3 lightDir = -mainLight.direction;
+                float2 sunUv = GetSunUV(lightDir);
+
+                float intensity = _UnderwaterGodRayParams.x;
+                float decay = _UnderwaterGodRayParams.y;
+                float weight = _UnderwaterGodRayParams.z;
+                float density = _UnderwaterGodRayParams.w;
+
+                int samples = (int)_UnderwaterGodRayParams2.x;
+                float speed = _UnderwaterGodRayParams2.y;
+
+                float2 delta = (sunUv - uv) * (density / max(1, samples));
+                float2 coord = uv;
+                float illuminationDecay = 1.0;
+                float ray = 0.0;
+
+                UNITY_LOOP
+                for (int i = 0; i < samples; i++)
+                {
+                    coord += delta;
+                    coord = saturate(coord);
+
+                    float depthSample = SampleSceneDepth(coord);
+                    float linearDepth = LinearEyeDepth(depthSample, _ZBufferParams);
+                    float occlusion = exp(-linearDepth * _UnderwaterFogParams.x);
+
+                    ray += occlusion * illuminationDecay;
+                    illuminationDecay *= decay;
+                }
+
+                float noiseMod = lerp(0.75, 1.25, Noise(uv * 6.0 + time * speed));
+                float scatter = ray * weight * intensity * noiseMod;
+                return _UnderwaterGodRayColor.rgb * scatter * fogFactor;
+            }
+
+            half4 Frag(Varyings i) : SV_Target
+            {
+                float2 uv = i.texcoord;
+                float time = _Time.y;
+
+                float fade = saturate(_UnderwaterBlend);
+                if (fade <= 0.001)
+                    return SAMPLE_TEXTURE2D_X(_BlitTexture, sampler_BlitTexture, uv);
+
+                float2 offset = DistortionOffset(uv, time) * fade;
+                float2 distortedUV = uv + offset;
+
+                float3 color = SAMPLE_TEXTURE2D_X(_BlitTexture, sampler_BlitTexture, distortedUV).rgb;
+
+                float chroma = _UnderwaterChromaticShift * fade;
+                if (chroma > 0.0001)
+                {
+                    float2 shift = normalize(offset + 0.0001) * chroma;
+                    float r = SAMPLE_TEXTURE2D_X(_BlitTexture, sampler_BlitTexture, distortedUV + shift).r;
+                    float g = SAMPLE_TEXTURE2D_X(_BlitTexture, sampler_BlitTexture, distortedUV).g;
+                    float b = SAMPLE_TEXTURE2D_X(_BlitTexture, sampler_BlitTexture, distortedUV - shift).b;
+                    color = float3(r, g, b);
+                }
+
+                float depth = SampleSceneDepth(uv);
+                float linearDepth = LinearEyeDepth(depth, _ZBufferParams);
+
+                float fogFactor = 0.0;
+                if (_UnderwaterFogEnabled > 0.5)
+                {
+                    fogFactor = ComputeFog(linearDepth) * fade;
+                    color = lerp(color, _UnderwaterFogColor.rgb, fogFactor);
+                }
+
+                float3 rays = ComputeGodRays(uv, max(fogFactor, fade * 0.25), time) * fade;
+                color += rays;
+
+                return float4(color, 1.0);
+            }
+            ENDHLSL
         }
     }
 }

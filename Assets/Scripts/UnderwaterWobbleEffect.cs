@@ -1,63 +1,127 @@
 using UnityEngine;
+using UnityEngine.Rendering;
+using UnityEngine.Rendering.Universal;
 
-[DisallowMultipleComponent]
-public class UnderwaterWobbleEffect : MonoBehaviour
+public class UnderwaterWobbleEffect : ScriptableRendererFeature
 {
-    [Header("Shader")]
-    public Shader wobbleShader;
-
-    [Header("Look")]
-    [Range(0f, 0.05f)] public float strength = 0.009f;
-    [Range(1f, 50f)] public float scale = 12f;
-    [Range(0f, 10f)] public float speed = 1.5f;
-    [Range(0f, 0.01f)] public float colorShift = 0f;
-
-    [Header("Runtime")]
-    [Range(0f, 1f)] public float fade = 0f; // manager drives this (0 above, 1 underwater)
-
-    Material mat;
-
-    void OnEnable()
+    [System.Serializable]
+    public class Settings
     {
-        if (wobbleShader == null)
-            wobbleShader = Shader.Find("Hidden/UnderwaterWobble");
-
-        if (wobbleShader == null)
-        {
-            enabled = false;
-            return;
-        }
-
-        if (mat == null)
-        {
-            mat = new Material(wobbleShader);
-            mat.hideFlags = HideFlags.HideAndDontSave;
-        }
+        public Shader shader;
+        public RenderPassEvent renderPassEvent = RenderPassEvent.AfterRenderingTransparents;
+        public bool applyInSceneView = false;
+        public bool applyInPreview = false;
     }
 
-    void OnDisable()
+    public Settings settings = new Settings();
+
+    Material material;
+    UnderwaterPass pass;
+
+    public override void Create()
     {
-        if (mat != null)
+        if (settings.shader == null)
+            settings.shader = Shader.Find("Hidden/UnderwaterWobble");
+
+        if (settings.shader != null)
+            material = CoreUtils.CreateEngineMaterial(settings.shader);
+
+        pass = new UnderwaterPass(material)
         {
-            DestroyImmediate(mat);
-            mat = null;
-        }
+            renderPassEvent = settings.renderPassEvent
+        };
     }
 
-    void OnRenderImage(RenderTexture src, RenderTexture dest)
+    public override void AddRenderPasses(ScriptableRenderer renderer, ref RenderingData renderingData)
     {
-        if (mat == null || fade <= 0.001f)
-        {
-            Graphics.Blit(src, dest);
+        if (material == null)
             return;
+
+        if (!settings.applyInSceneView && renderingData.cameraData.isSceneViewCamera)
+            return;
+
+        if (!settings.applyInPreview && renderingData.cameraData.isPreviewCamera)
+            return;
+
+        renderer.EnqueuePass(pass);
+    }
+
+    public override void SetupRenderPasses(ScriptableRenderer renderer, in RenderingData renderingData)
+    {
+        if (material == null)
+            return;
+
+        if (!settings.applyInSceneView && renderingData.cameraData.isSceneViewCamera)
+            return;
+
+        if (!settings.applyInPreview && renderingData.cameraData.isPreviewCamera)
+            return;
+
+        pass.SetSource(renderer.cameraColorTargetHandle);
+    }
+
+    protected override void Dispose(bool disposing)
+    {
+        pass?.Dispose();
+        CoreUtils.Destroy(material);
+    }
+
+    class UnderwaterPass : ScriptableRenderPass
+    {
+        static readonly int UnderwaterBlendId = Shader.PropertyToID("_UnderwaterBlend");
+
+        readonly Material material;
+        RTHandle source;
+        RTHandle tempColor;
+
+        public UnderwaterPass(Material material)
+        {
+            this.material = material;
+            ConfigureInput(ScriptableRenderPassInput.Depth);
         }
 
-        mat.SetFloat("_Strength", strength);
-        mat.SetFloat("_Scale", scale);
-        mat.SetFloat("_Speed", speed);
-        mat.SetFloat("_ColorShift", colorShift);
-        mat.SetFloat("_Fade", fade);
+        public void SetSource(RTHandle source)
+        {
+            this.source = source;
+        }
 
-        Graphics.Blit(src, dest, mat);
+        public override void OnCameraSetup(CommandBuffer cmd, ref RenderingData renderingData)
+        {
+            var desc = renderingData.cameraData.cameraTargetDescriptor;
+            desc.depthBufferBits = 0;
+            RenderingUtils.ReAllocateIfNeeded(
+                ref tempColor,
+                desc,
+                FilterMode.Bilinear,
+                TextureWrapMode.Clamp,
+                name: "_UnderwaterTemp");
+        }
+
+        public override void Execute(ScriptableRenderContext context, ref RenderingData renderingData)
+        {
+            if (material == null)
+                return;
+
+            if (renderingData.cameraData.cameraType != CameraType.Game)
+                return;
+
+            if (Shader.GetGlobalFloat(UnderwaterBlendId) <= 0.001f)
+                return;
+
+            var cmd = CommandBufferPool.Get("UnderwaterWobble");
+            using (new ProfilingScope(cmd, new ProfilingSampler("UnderwaterWobble")))
+            {
+                Blitter.BlitCameraTexture(cmd, source, tempColor, material, 0);
+                Blitter.BlitCameraTexture(cmd, tempColor, source);
+            }
+
+            context.ExecuteCommandBuffer(cmd);
+            CommandBufferPool.Release(cmd);
+        }
+
+        public void Dispose()
+        {
+            tempColor?.Release();
+        }
     }
 }

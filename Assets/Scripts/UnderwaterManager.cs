@@ -1,4 +1,6 @@
 using UnityEngine;
+using UnityEngine.Rendering;
+using UnityEngine.Serialization;
 
 public class UnderwaterManager : MonoBehaviour
 {
@@ -9,12 +11,37 @@ public class UnderwaterManager : MonoBehaviour
     [Header("Transition")]
     public float transitionSpeed = 4f;
 
-    [Header("Fog")]
-    public bool controlFog = true;
+    [Header("Underwater Post FX (URP)")]
+    [FormerlySerializedAs("controlWobble")]
+    public bool controlPostFx = true;
+    [FormerlySerializedAs("wobbleFadeMultiplier")]
+    public float postFxFadeMultiplier = 1f;
 
+    [Header("Fog (Post FX)")]
+    public bool controlFog = true;
     public bool underwaterFogEnabled = true;
     public Color underwaterFogColor = new Color(0.05f, 0.35f, 0.45f, 1f);
-    [Range(0f, 0.1f)] public float underwaterFogDensity = 0.03f;
+    [Range(0f, 0.2f)] public float underwaterFogDensity = 0.03f;
+    [Min(0f)] public float underwaterFogStartDistance = 0f;
+    [Min(0f)] public float underwaterFogEndDistance = 120f;
+    [Range(0.1f, 4f)] public float underwaterFogPower = 1f;
+
+    [Header("Distortion")]
+    [Range(0f, 0.05f)] public float distortionStrength = 0.009f;
+    [Range(1f, 50f)] public float distortionScale = 12f;
+    [Range(0f, 10f)] public float distortionSpeed = 1.5f;
+    [Range(0f, 1f)] public float distortionDetail = 0.35f;
+    [Range(0f, 0.01f)] public float chromaticShift = 0.002f;
+
+    [Header("God Rays")]
+    public bool godRaysEnabled = true;
+    public Color godRayColor = new Color(0.6f, 0.85f, 1f, 1f);
+    [Range(0f, 5f)] public float godRayIntensity = 0.8f;
+    [Range(0f, 1f)] public float godRayDecay = 0.94f;
+    [Range(0f, 1f)] public float godRayWeight = 0.35f;
+    [Range(0f, 2f)] public float godRayDensity = 0.9f;
+    [Range(0f, 2f)] public float godRaySpeed = 0.25f;
+    [Range(1, 32)] public int godRaySamples = 12;
 
     [Header("Ambient")]
     public bool controlAmbient = true;
@@ -32,26 +59,16 @@ public class UnderwaterManager : MonoBehaviour
     public float aboveCutoff = 22000f;
     public float underwaterCutoff = 900f;
 
-    [Header("Underwater Wobble (screen distortion)")]
-    public bool controlWobble = true;
-    public float wobbleFadeMultiplier = 1f;
-
     float blend;
     bool isUnderwater;
     bool wasUnderwater;
     Camera activeCamera;
     AudioLowPassFilter lowpass;
 
-    bool fogCached;
     bool ambientCached;
     bool lightCached;
     bool audioCached;
-    bool wobbleCached;
 
-    bool cachedFog;
-    Color cachedFogColor;
-    float cachedFogDensity;
-    FogMode cachedFogMode;
     Color cachedAmbient;
     float cachedMainLightIntensity;
 
@@ -60,73 +77,102 @@ public class UnderwaterManager : MonoBehaviour
     bool cachedLowpassEnabled;
     bool cachedLowpassWasAdded;
 
-    UnderwaterWobbleEffect cachedWobble;
-    float cachedWobbleFade;
-    bool cachedWobbleWasAdded;
-    Camera cachedCamera;
-
-    // original scene values
-    bool startFog;
-    Color startFogColor;
-    float startFogDensity;
-    Color startAmbient;
-    FogMode startFogMode;
+    static readonly int UnderwaterBlendId = Shader.PropertyToID("_UnderwaterBlend");
+    static readonly int UnderwaterFogEnabledId = Shader.PropertyToID("_UnderwaterFogEnabled");
+    static readonly int UnderwaterFogColorId = Shader.PropertyToID("_UnderwaterFogColor");
+    static readonly int UnderwaterFogParamsId = Shader.PropertyToID("_UnderwaterFogParams");
+    static readonly int UnderwaterDistortionParamsId = Shader.PropertyToID("_UnderwaterDistortionParams");
+    static readonly int UnderwaterChromaticShiftId = Shader.PropertyToID("_UnderwaterChromaticShift");
+    static readonly int UnderwaterGodRayEnabledId = Shader.PropertyToID("_UnderwaterGodRayEnabled");
+    static readonly int UnderwaterGodRayColorId = Shader.PropertyToID("_UnderwaterGodRayColor");
+    static readonly int UnderwaterGodRayParamsId = Shader.PropertyToID("_UnderwaterGodRayParams");
+    static readonly int UnderwaterGodRayParams2Id = Shader.PropertyToID("_UnderwaterGodRayParams2");
 
     void OnEnable()
     {
-        CacheStartValues();
-        Camera.onPreRender += OnCameraPreRender;
+        RenderPipelineManager.beginCameraRendering += OnBeginCameraRendering;
     }
 
     void OnDisable()
     {
-        Camera.onPreRender -= OnCameraPreRender;
+        RenderPipelineManager.beginCameraRendering -= OnBeginCameraRendering;
         RestoreAboveValues();
-        RestoreStartValues();
         wasUnderwater = false;
     }
 
-    void CacheStartValues()
+    void OnBeginCameraRendering(ScriptableRenderContext context, Camera cam)
     {
-        startFog = RenderSettings.fog;
-        startFogColor = RenderSettings.fogColor;
-        startFogDensity = RenderSettings.fogDensity;
-        startAmbient = RenderSettings.ambientLight;
-        startFogMode = RenderSettings.fogMode;
+        if (cam.cameraType != CameraType.Game) return;
+
+        activeCamera = cam;
+        UpdateBlend();
+        UpdateShaderGlobals();
+
+        if (isUnderwater)
+        {
+            if (!wasUnderwater)
+                CacheAboveValues(cam);
+
+            ApplyEffects();
+            SetupAudio(cam);
+        }
+        else if (wasUnderwater)
+        {
+            RestoreAboveValues();
+        }
+
+        wasUnderwater = isUnderwater;
     }
 
-    void RestoreStartValues()
+    void UpdateBlend()
     {
-        RenderSettings.fog = startFog;
-        RenderSettings.fogColor = startFogColor;
-        RenderSettings.fogDensity = startFogDensity;
-        RenderSettings.ambientLight = startAmbient;
-        RenderSettings.fogMode = startFogMode;
+        float threshold = waterY + enterOffset;
+        isUnderwater = activeCamera.transform.position.y < threshold;
+
+        float target = isUnderwater ? 1f : 0f;
+        blend = Mathf.MoveTowards(blend, target, transitionSpeed * Time.deltaTime);
+    }
+
+    void UpdateShaderGlobals()
+    {
+        float postBlend = 0f;
+        if (controlPostFx && isUnderwater)
+            postBlend = Mathf.Clamp01(blend * postFxFadeMultiplier);
+
+        Shader.SetGlobalFloat(UnderwaterBlendId, postBlend);
+
+        float fogEnabled = (controlFog && underwaterFogEnabled) ? 1f : 0f;
+        float fogEnd = Mathf.Max(underwaterFogEndDistance, underwaterFogStartDistance + 0.01f);
+        Shader.SetGlobalFloat(UnderwaterFogEnabledId, fogEnabled);
+        Shader.SetGlobalColor(UnderwaterFogColorId, underwaterFogColor);
+        Shader.SetGlobalVector(
+            UnderwaterFogParamsId,
+            new Vector4(underwaterFogDensity, underwaterFogStartDistance, fogEnd, underwaterFogPower));
+
+        Shader.SetGlobalVector(
+            UnderwaterDistortionParamsId,
+            new Vector4(distortionStrength, distortionScale, distortionSpeed, distortionDetail));
+        Shader.SetGlobalFloat(UnderwaterChromaticShiftId, chromaticShift);
+
+        float raysEnabled = godRaysEnabled ? 1f : 0f;
+        Shader.SetGlobalFloat(UnderwaterGodRayEnabledId, raysEnabled);
+        Shader.SetGlobalColor(UnderwaterGodRayColorId, godRayColor);
+        Shader.SetGlobalVector(
+            UnderwaterGodRayParamsId,
+            new Vector4(godRayIntensity, godRayDecay, godRayWeight, godRayDensity));
+        Shader.SetGlobalVector(
+            UnderwaterGodRayParams2Id,
+            new Vector4(Mathf.Clamp(godRaySamples, 1, 32), godRaySpeed, 0f, 0f));
     }
 
     void CacheAboveValues(Camera cam)
     {
-        cachedCamera = cam;
-
-        fogCached = false;
         ambientCached = false;
         lightCached = false;
         audioCached = false;
-        wobbleCached = false;
 
         cachedLowpass = null;
-        cachedWobble = null;
         cachedLowpassWasAdded = false;
-        cachedWobbleWasAdded = false;
-
-        if (controlFog)
-        {
-            fogCached = true;
-            cachedFog = RenderSettings.fog;
-            cachedFogColor = RenderSettings.fogColor;
-            cachedFogDensity = RenderSettings.fogDensity;
-            cachedFogMode = RenderSettings.fogMode;
-        }
 
         if (controlAmbient)
         {
@@ -157,43 +203,15 @@ public class UnderwaterManager : MonoBehaviour
                 cachedLowpassEnabled = true;
             }
         }
-
-        if (controlWobble)
-        {
-            wobbleCached = true;
-            cachedWobble = cam.GetComponent<UnderwaterWobbleEffect>();
-            if (cachedWobble != null)
-            {
-                cachedWobbleWasAdded = false;
-                cachedWobbleFade = cachedWobble.fade;
-            }
-            else
-            {
-                cachedWobbleWasAdded = true;
-                cachedWobbleFade = 0f;
-            }
-        }
     }
 
     void RestoreAboveValues()
     {
-        if (controlFog && fogCached)
-        {
-            RenderSettings.fog = cachedFog;
-            RenderSettings.fogColor = cachedFogColor;
-            RenderSettings.fogDensity = cachedFogDensity;
-            RenderSettings.fogMode = cachedFogMode;
-        }
-
         if (controlAmbient && ambientCached)
-        {
             RenderSettings.ambientLight = cachedAmbient;
-        }
 
         if (controlMainLight && lightCached && mainDirectionalLight != null)
-        {
             mainDirectionalLight.intensity = cachedMainLightIntensity;
-        }
 
         if (controlAudioLowpass && audioCached)
         {
@@ -213,88 +231,18 @@ public class UnderwaterManager : MonoBehaviour
             }
         }
 
-        if (controlWobble && wobbleCached)
-        {
-            if (cachedWobbleWasAdded)
-            {
-                if (cachedCamera != null)
-                {
-                    var wobble = cachedCamera.GetComponent<UnderwaterWobbleEffect>();
-                    if (wobble != null)
-                        Destroy(wobble);
-                }
-            }
-            else if (cachedWobble != null)
-            {
-                cachedWobble.fade = cachedWobbleFade;
-            }
-        }
-
-        fogCached = false;
         ambientCached = false;
         lightCached = false;
         audioCached = false;
-        wobbleCached = false;
         cachedLowpass = null;
-        cachedWobble = null;
-        cachedCamera = null;
-    }
-
-    void OnCameraPreRender(Camera cam)
-    {
-        if (cam.cameraType != CameraType.Game) return;
-
-        activeCamera = cam;
-        UpdateBlend();
-
-        if (isUnderwater)
-        {
-            if (!wasUnderwater)
-                CacheAboveValues(cam);
-
-            ApplyEffects();
-            SetupAudio(cam);
-            SetupWobble(cam);
-        }
-        else if (wasUnderwater)
-        {
-            RestoreAboveValues();
-        }
-
-        wasUnderwater = isUnderwater;
-    }
-
-    void UpdateBlend()
-    {
-        float threshold = waterY + enterOffset;
-        isUnderwater = activeCamera.transform.position.y < threshold;
-
-        float target = isUnderwater ? 1f : 0f;
-        blend = Mathf.MoveTowards(blend, target, transitionSpeed * Time.deltaTime);
     }
 
     void ApplyEffects()
     {
-        if (controlFog)
-        {
-            if (underwaterFogEnabled)
-            {
-                RenderSettings.fog = true;
-                RenderSettings.fogMode = FogMode.Exponential;
-                RenderSettings.fogColor = underwaterFogColor;
-                RenderSettings.fogDensity = Mathf.Lerp(0f, underwaterFogDensity, blend);
-            }
-            else
-            {
-                RenderSettings.fog = false;
-            }
-        }
-
         if (controlAmbient)
         {
             Color from = ambientCached ? cachedAmbient : RenderSettings.ambientLight;
-            RenderSettings.ambientLight =
-                Color.Lerp(from, underwaterAmbient, blend);
+            RenderSettings.ambientLight = Color.Lerp(from, underwaterAmbient, blend);
         }
 
         if (controlMainLight && mainDirectionalLight != null)
@@ -321,16 +269,5 @@ public class UnderwaterManager : MonoBehaviour
         float from = audioCached ? cachedLowpassCutoff : aboveCutoff;
         lowpass.cutoffFrequency =
             Mathf.Lerp(from, underwaterCutoff, blend);
-    }
-
-    void SetupWobble(Camera cam)
-    {
-        if (!controlWobble) return;
-
-        var wobble = cam.GetComponent<UnderwaterWobbleEffect>();
-        if (wobble == null)
-            wobble = cam.gameObject.AddComponent<UnderwaterWobbleEffect>();
-
-        wobble.fade = Mathf.Clamp01(blend * wobbleFadeMultiplier);
     }
 }
