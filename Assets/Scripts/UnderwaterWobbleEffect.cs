@@ -20,11 +20,9 @@ public class UnderwaterWobbleEffect : ScriptableRendererFeature
 
     public override void Create()
     {
-        if (settings.shader == null)
-            settings.shader = Shader.Find("Hidden/UnderwaterWobble");
-
-        if (settings.shader != null)
-            material = CoreUtils.CreateEngineMaterial(settings.shader);
+        var shader = settings.shader ? settings.shader : Shader.Find("Hidden/UnderwaterWobble");
+        if (shader != null)
+            material = CoreUtils.CreateEngineMaterial(shader);
 
         pass = new UnderwaterPass(material)
         {
@@ -34,7 +32,7 @@ public class UnderwaterWobbleEffect : ScriptableRendererFeature
 
     public override void AddRenderPasses(ScriptableRenderer renderer, ref RenderingData renderingData)
     {
-        if (material == null)
+        if (material == null || pass == null)
             return;
 
         if (!settings.applyInSceneView && renderingData.cameraData.isSceneViewCamera)
@@ -48,7 +46,7 @@ public class UnderwaterWobbleEffect : ScriptableRendererFeature
 
     public override void SetupRenderPasses(ScriptableRenderer renderer, in RenderingData renderingData)
     {
-        if (material == null)
+        if (material == null || pass == null)
             return;
 
         if (!settings.applyInSceneView && renderingData.cameraData.isSceneViewCamera)
@@ -99,7 +97,7 @@ public class UnderwaterWobbleEffect : ScriptableRendererFeature
 
         public override void Execute(ScriptableRenderContext context, ref RenderingData renderingData)
         {
-            if (material == null)
+            if (material == null || source == null)
                 return;
 
             if (renderingData.cameraData.cameraType != CameraType.Game)
@@ -108,8 +106,8 @@ public class UnderwaterWobbleEffect : ScriptableRendererFeature
             if (Shader.GetGlobalFloat(UnderwaterBlendId) <= 0.001f)
                 return;
 
-            var cmd = CommandBufferPool.Get("UnderwaterWobble");
-            using (new ProfilingScope(cmd, new ProfilingSampler("UnderwaterWobble")))
+            var cmd = CommandBufferPool.Get("UnderwaterPostFx");
+            using (new ProfilingScope(cmd, new ProfilingSampler("UnderwaterPostFx")))
             {
                 Blitter.BlitCameraTexture(cmd, source, tempColor, material, 0);
                 Blitter.BlitCameraTexture(cmd, tempColor, source);

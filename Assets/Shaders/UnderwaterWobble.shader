@@ -5,7 +5,7 @@ Shader "Hidden/UnderwaterWobble"
         Tags { "RenderPipeline"="UniversalPipeline" "RenderType"="Opaque" }
         Pass
         {
-            Name "UnderwaterWobble"
+            Name "UnderwaterPostFx"
             ZWrite Off
             ZTest Always
             Cull Off
@@ -26,50 +26,24 @@ Shader "Hidden/UnderwaterWobble"
             float _UnderwaterFogEnabled;
             float4 _UnderwaterFogColor;
             float4 _UnderwaterFogParams; // density, start, end, power
-            float4 _UnderwaterDistortionParams; // strength, scale, speed, detail
+            float4 _UnderwaterDistortionParams; // strength, scale, speed, unused
             float _UnderwaterChromaticShift;
             float _UnderwaterGodRayEnabled;
             float4 _UnderwaterGodRayColor;
             float4 _UnderwaterGodRayParams; // intensity, decay, weight, density
             float4 _UnderwaterGodRayParams2; // samples, speed, unused, unused
 
-            float Hash12(float2 p)
-            {
-                float3 p3 = frac(float3(p.xyx) * 0.1031);
-                p3 += dot(p3, p3.yzx + 33.33);
-                return frac((p3.x + p3.y) * p3.z);
-            }
-
-            float Noise(float2 p)
-            {
-                float2 i = floor(p);
-                float2 f = frac(p);
-
-                float a = Hash12(i);
-                float b = Hash12(i + float2(1, 0));
-                float c = Hash12(i + float2(0, 1));
-                float d = Hash12(i + float2(1, 1));
-
-                float2 u = f * f * (3.0 - 2.0 * f);
-                return lerp(lerp(a, b, u.x), lerp(c, d, u.x), u.y);
-            }
-
             float2 DistortionOffset(float2 uv, float time)
             {
                 float strength = _UnderwaterDistortionParams.x;
                 float scale = _UnderwaterDistortionParams.y;
                 float speed = _UnderwaterDistortionParams.z;
-                float detail = _UnderwaterDistortionParams.w;
 
-                float2 p = uv * scale;
-                float t = time * speed;
+                float2 wave = float2(
+                    sin((uv.y * scale) + time * speed),
+                    cos((uv.x * scale) - time * speed * 1.1));
 
-                float n1 = Noise(p + t);
-                float n2 = Noise(p * (1.7 + detail) - t * 1.3);
-                float n3 = Noise(p * (2.3 + detail) + t * 0.7);
-
-                float2 n = float2(n1 - n2, n2 - n3);
-                return n * strength;
+                return wave * strength;
             }
 
             float ComputeFog(float linearDepth)
@@ -79,9 +53,9 @@ Shader "Hidden/UnderwaterWobble"
                 float end = _UnderwaterFogParams.z;
                 float power = _UnderwaterFogParams.w;
 
-                float fogExp = 1.0 - exp(-linearDepth * density);
-                float fogRange = saturate((linearDepth - start) / max(0.001, end - start));
-                float fog = saturate(fogExp * fogRange);
+                float range = saturate((linearDepth - start) / max(0.001, end - start));
+                float expFog = 1.0 - exp(-linearDepth * density);
+                float fog = saturate(range * expFog);
                 return pow(fog, power);
             }
 
@@ -96,7 +70,7 @@ Shader "Hidden/UnderwaterWobble"
             float3 ComputeGodRays(float2 uv, float fogFactor, float time)
             {
                 if (_UnderwaterGodRayEnabled <= 0.5)
-                    return 0;
+                    return 0.0;
 
                 Light mainLight = GetMainLight();
                 float3 lightDir = -mainLight.direction;
@@ -129,20 +103,20 @@ Shader "Hidden/UnderwaterWobble"
                     illuminationDecay *= decay;
                 }
 
-                float noiseMod = lerp(0.75, 1.25, Noise(uv * 6.0 + time * speed));
-                float scatter = ray * weight * intensity * noiseMod;
+                float shimmer = lerp(0.85, 1.15, sin((uv.x + uv.y + time * speed) * 6.2831) * 0.5 + 0.5);
+                float scatter = ray * weight * intensity * shimmer;
                 return _UnderwaterGodRayColor.rgb * scatter * fogFactor;
             }
 
             half4 Frag(Varyings i) : SV_Target
             {
-                float2 uv = i.texcoord;
-                float time = _Time.y;
-
                 float fade = saturate(_UnderwaterBlend);
+                float2 uv = UnityStereoTransformScreenSpaceTex(i.texcoord);
+
                 if (fade <= 0.001)
                     return SAMPLE_TEXTURE2D_X(_BlitTexture, sampler_BlitTexture, uv);
 
+                float time = _Time.y;
                 float2 offset = DistortionOffset(uv, time) * fade;
                 float2 distortedUV = uv + offset;
 

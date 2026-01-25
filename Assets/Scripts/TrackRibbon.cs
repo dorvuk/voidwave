@@ -26,6 +26,13 @@ public class TrackRibbon : MonoBehaviour
         GetComponent<MeshFilter>().sharedMesh = mesh;
     }
 
+    void OnEnable()
+    {
+        timer = rebuildEvery;
+        if (track != null && track.Spline.GetLength() >= 0.01f)
+            Build();
+    }
+
     void LateUpdate()
     {
         if (!track) return;

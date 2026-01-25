@@ -1306,41 +1306,29 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: dbcd9bda64f10744f9cd88f8e90e2250, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
-  waterY: 100
+  waterY: 90
   enterOffset: 0
   transitionSpeed: 4
-  controlPostFx: 1
-  postFxFadeMultiplier: 1
-  controlFog: 0
-  underwaterFogEnabled: 0
-  underwaterFogColor: {r: 0.4870197, g: 0.34709862, b: 0.9811321, a: 0.54509807}
-  underwaterFogDensity: 0.0202
-  underwaterFogStartDistance: 0
-  underwaterFogEndDistance: 120
-  underwaterFogPower: 1
+  effectsEnabled: 1
+  effectIntensity: 1
+  fogEnabled: 0
+  fogColor: {r: 0.4870197, g: 0.34709862, b: 0.9811321, a: 0.54509807}
+  fogDensity: 0.0202
+  fogStartDistance: 0
+  fogEndDistance: 120
+  fogPower: 1
   distortionStrength: 0.0043
   distortionScale: 4
   distortionSpeed: 1.5
-  distortionDetail: 0.271
   chromaticShift: 0.00124
   godRaysEnabled: 1
-  godRayColor: {r: 1, g: 0.9659728, b: 0.11792451, a: 1}
+  godRayColor: {r: 0.89323217, g: 0.514151, b: 1, a: 1}
   godRayIntensity: 0.19
   godRayDecay: 0.264
   godRayWeight: 0.186
   godRayDensity: 0.36
   godRaySpeed: 0.25
   godRaySamples: 5
-  controlAmbient: 1
-  aboveAmbient: {r: 1, g: 1, b: 1, a: 1}
-  underwaterAmbient: {r: 0.12, g: 0.2, b: 0.25, a: 1}
-  controlMainLight: 0
-  mainDirectionalLight: {fileID: 503027047}
-  aboveLightIntensity: 1
-  underwaterLightIntensity: 0.6
-  controlAudioLowpass: 1
-  aboveCutoff: 22000
-  underwaterCutoff: 900
 --- !u!1 &818317048
 GameObject:
   m_ObjectHideFlags: 0
