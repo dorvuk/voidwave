@@ -1,4 +1,4 @@
-# Voidwave –
+# Voidwave
 
 This is a short guide so we can work together in Unity without breaking the project or causing merge conflicts.
 

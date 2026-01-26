@@ -1,6 +1,7 @@
 using System;
 using System.Collections;
 using UnityEngine;
+using UnityEngine.Serialization;
 
 public class GameStateManager : MonoBehaviour
 {
@@ -26,10 +27,9 @@ public class GameStateManager : MonoBehaviour
     public Transform playerRoot;
     public Transform menuPose;
 
-    [Header("Temporary Ocean")]
-    public GameObject tempOceanPrefab;
-    public float tempOceanHeightOffset = 2f;
-    public float tempOceanLifetimeSafety = 10f;
+    [Header("Surface Transition")]
+    [FormerlySerializedAs("tempOceanHeightOffset")]
+    public float surfaceHeightOffset = 2f;
 
     [Header("Gameplay Systems")]
     [Tooltip("Systems that should be toggled on only during gameplay (runner, generator, spawners, etc).")]
@@ -47,18 +47,12 @@ public class GameStateManager : MonoBehaviour
 
     public GameState CurrentState { get; private set; } = GameState.MenuIdle;
 
-    GameObject tempOceanInstance;
     Coroutine transitionRoutine;
     Vector3 lastDeathPos;
 
     void Start()
     {
         ForceMenuState();
-    }
-
-    void OnDisable()
-    {
-        CleanupTempOcean();
     }
 
     public void OnPlayPressed()
@@ -146,41 +140,32 @@ public class GameStateManager : MonoBehaviour
 
         SwitchToGameplayCamera(); // keep gameplay view during the swim up
 
-        Vector3 surfacePos = lastDeathPos + Vector3.up * tempOceanHeightOffset;
-
-        SpawnTempOcean(surfacePos);
+        Vector3 surfacePos = lastDeathPos + Vector3.up * surfaceHeightOffset;
 
         float duration = Mathf.Max(0.001f, surfaceDuration);
         Vector3 startPos = playerRoot ? playerRoot.position : surfacePos;
         Quaternion startRot = playerRoot ? playerRoot.rotation : Quaternion.identity;
         Quaternion targetRot = menuPose ? menuPose.rotation : Quaternion.identity;
 
-        try
+        if (playerRoot)
         {
-            if (playerRoot)
+            float t = 0f;
+            while (t < duration)
             {
-                float t = 0f;
-                while (t < duration)
-                {
-                    t += Time.deltaTime;
-                    float u = Mathf.Clamp01(t / duration);
-                    u = EaseMove(u);
-                    playerRoot.position = Vector3.Lerp(startPos, surfacePos, u);
-                    playerRoot.rotation = Quaternion.Slerp(startRot, targetRot, u);
-                    yield return null;
-                }
+                t += Time.deltaTime;
+                float u = Mathf.Clamp01(t / duration);
+                u = EaseMove(u);
+                playerRoot.position = Vector3.Lerp(startPos, surfacePos, u);
+                playerRoot.rotation = Quaternion.Slerp(startRot, targetRot, u);
+                yield return null;
+            }
 
-                playerRoot.position = surfacePos;
-                playerRoot.rotation = targetRot;
-            }
-            else
-            {
-                yield return new WaitForSeconds(duration);
-            }
+            playerRoot.position = surfacePos;
+            playerRoot.rotation = targetRot;
         }
-        finally
+        else
         {
-            CleanupTempOcean();
+            yield return new WaitForSeconds(duration);
         }
 
         HardResetToMenu();
@@ -252,12 +237,35 @@ public class GameStateManager : MonoBehaviour
 
     void ResetAllSystems()
     {
-        if (resettableSystems == null || resettableSystems.Length == 0) return;
-
-        foreach (var mb in resettableSystems)
+        if (resettableSystems != null && resettableSystems.Length > 0)
         {
-            if (!mb) continue;
+            foreach (var mb in resettableSystems)
+            {
+                if (!mb) continue;
 
+                if (mb is IRunResettable resettable)
+                {
+                    try
+                    {
+                        resettable.ResetRun();
+                    }
+                    catch (Exception ex)
+                    {
+                        Debug.LogError($"ResetRun threw on {mb.name}: {ex}", this);
+                    }
+                }
+                else
+                {
+                    Debug.LogWarning($"Reset list contains {mb.name} but it does not implement IRunResettable.", this);
+                }
+            }
+
+            return;
+        }
+
+        var resettables = FindObjectsOfType<MonoBehaviour>(true);
+        foreach (var mb in resettables)
+        {
             if (mb is IRunResettable resettable)
             {
                 try
@@ -268,10 +276,6 @@ public class GameStateManager : MonoBehaviour
                 {
                     Debug.LogError($"ResetRun threw on {mb.name}: {ex}", this);
                 }
-            }
-            else
-            {
-                Debug.LogWarning($"Reset list contains {mb.name} but it does not implement IRunResettable.", this);
             }
         }
     }
@@ -304,40 +308,6 @@ public class GameStateManager : MonoBehaviour
         }
 
         camGO.SetActive(active);
-    }
-
-    void SpawnTempOcean(Vector3 surfacePos)
-    {
-        CleanupTempOcean();
-
-        if (tempOceanPrefab)
-        {
-            tempOceanInstance = Instantiate(tempOceanPrefab, surfacePos, Quaternion.identity);
-        }
-        else
-        {
-            tempOceanInstance = GameObject.CreatePrimitive(PrimitiveType.Plane);
-            tempOceanInstance.name = "TempOcean";
-            tempOceanInstance.transform.SetPositionAndRotation(surfacePos, Quaternion.identity);
-            tempOceanInstance.transform.localScale = Vector3.one;
-
-            var col = tempOceanInstance.GetComponent<Collider>();
-            if (col) col.enabled = false;
-        }
-
-        if (tempOceanInstance && tempOceanLifetimeSafety > 0f)
-        {
-            Destroy(tempOceanInstance, tempOceanLifetimeSafety);
-        }
-    }
-
-    void CleanupTempOcean()
-    {
-        if (tempOceanInstance)
-        {
-            Destroy(tempOceanInstance);
-            tempOceanInstance = null;
-        }
     }
 
     float EaseMove(float t)
