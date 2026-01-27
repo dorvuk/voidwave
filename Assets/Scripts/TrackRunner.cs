@@ -14,6 +14,13 @@ public class TrackRunner : MonoBehaviour, IRunResettable
     public float startSpeed = 18f;
     public float maxSpeed = 38f;
     public float rampRate = 0.12f;
+    public bool useRampCurve = true;
+    public float rampDuration = 60f;
+    public AnimationCurve rampCurve = AnimationCurve.EaseInOut(0f, 0f, 1f, 1f);
+
+    [Header("Reset")]
+    [Tooltip("If false, ResetRun will reset internal state without snapping the transform to the track start.")]
+    public bool snapToStartOnReset = true;
 
     public float laneWidth = 2.2f;
 
@@ -76,8 +83,7 @@ public class TrackRunner : MonoBehaviour, IRunResettable
         if (len <= 0.01f) return;
 
         runTime += Time.deltaTime;
-        float t = Mathf.Max(0f, runTime);
-        speed = maxSpeed - (maxSpeed - startSpeed) * Mathf.Exp(-rampRate * t);
+        speed = EvaluateSpeed(runTime);
 
         s += speed * Time.deltaTime;
 
@@ -128,6 +134,20 @@ public class TrackRunner : MonoBehaviour, IRunResettable
 
         float rotLerp = 1f - Mathf.Exp(-Mathf.Max(0.001f, rotationSmooth) * Time.deltaTime);
         transform.rotation = Quaternion.Slerp(transform.rotation, targetRot, rotLerp);
+    }
+
+    float EvaluateSpeed(float elapsedSeconds)
+    {
+        float t = Mathf.Max(0f, elapsedSeconds);
+
+        if (useRampCurve && rampDuration > 0f)
+        {
+            float u = Mathf.Clamp01(t / rampDuration);
+            float k = Mathf.Clamp01(rampCurve != null ? rampCurve.Evaluate(u) : u);
+            return Mathf.Lerp(startSpeed, maxSpeed, k);
+        }
+
+        return maxSpeed - (maxSpeed - startSpeed) * Mathf.Exp(-rampRate * t);
     }
 
     public float DistanceOnTrack => s;
@@ -198,16 +218,19 @@ public class TrackRunner : MonoBehaviour, IRunResettable
         Vector3 startPos = pos + right * x + up * hover;
         Quaternion startRot = Quaternion.LookRotation(fwd, up);
 
-        if (cc)
+        if (snapToStartOnReset)
         {
-            bool wasEnabled = cc.enabled;
-            cc.enabled = false;
-            transform.SetPositionAndRotation(startPos, startRot);
-            cc.enabled = wasEnabled;
-        }
-        else
-        {
-            transform.SetPositionAndRotation(startPos, startRot);
+            if (cc)
+            {
+                bool wasEnabled = cc.enabled;
+                cc.enabled = false;
+                transform.SetPositionAndRotation(startPos, startRot);
+                cc.enabled = wasEnabled;
+            }
+            else
+            {
+                transform.SetPositionAndRotation(startPos, startRot);
+            }
         }
     }
 }

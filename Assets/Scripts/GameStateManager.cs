@@ -19,9 +19,33 @@ public class GameStateManager : MonoBehaviour
     public GameObject hudUIRoot;
     public GameObject gameOverUIRoot;
 
+    [Header("UI Integration")]
+    [Tooltip("Optional: if assigned, UIManager handles UI transitions/fades and GameStateManager will not toggle UI roots directly.")]
+    [SerializeField] UIManager uiManager;
+
+    [Header("Player Health")]
+    [Tooltip("Optional: if assigned, GameStateManager listens for player death events.")]
+    [SerializeField] PlayerHealth playerHealth;
+
+    [Header("Scoring")]
+    [SerializeField] ScoreManager scoreManager;
+
+    [Header("Player Animations")]
+    [SerializeField] PlayerController playerController;
+    [SerializeField] TrackRunner trackRunner;
+
     [Header("Cameras")]
     public GameObject orbitCameraGO;
     public GameObject gameplayCameraGO;
+    public Camera transitionCamera;
+    public bool useCameraBlend = true;
+
+    [Header("Camera Focus")]
+    public bool focusPlayerDuringBlend = true;
+    public Transform cameraFocusTarget;
+    public Vector3 cameraFocusOffset = new Vector3(0f, 1.2f, 0f);
+    [Tooltip("How quickly the transition camera rotates to face the player (degrees per second).")]
+    public float focusRotationSpeed = 360f;
 
     [Header("Player")]
     public Transform playerRoot;
@@ -34,21 +58,55 @@ public class GameStateManager : MonoBehaviour
     [Header("Gameplay Systems")]
     [Tooltip("Systems that should be toggled on only during gameplay (runner, generator, spawners, etc).")]
     public Behaviour[] gameplayBehavioursToEnable;
-    [Tooltip("Optional: entire GameObjects to toggle instead of individual components (use if the inspector keeps picking the wrong component).")]
+    [Tooltip("Optional: entire GameObjects to toggle instead of individual components.")]
     public MonoBehaviour[] resettableSystems;
 
     [Header("Timings")]
+    [Tooltip("Seconds to dive from menu pose to track start.")]
     public float startDelay = 0.75f;
     public float surfaceDuration = 1.5f;
     [Tooltip("Exponent-style ease for transition movement. 1 = linear.")]
     public float transitionMoveEasing = 1f;
-
-    const float startDiveOffset = -0.6f;
+    [Tooltip("Blend time between cameras during transitions.")]
+    public float cameraBlendDuration = 1.0f;
 
     public GameState CurrentState { get; private set; } = GameState.MenuIdle;
 
     Coroutine transitionRoutine;
+    Coroutine cameraBlendRoutine;
+    bool isBlendingCamera;
     Vector3 lastDeathPos;
+
+    void OnEnable()
+    {
+        if (!uiManager)
+            uiManager = FindObjectOfType<UIManager>();
+
+        if (!scoreManager)
+            scoreManager = FindObjectOfType<ScoreManager>();
+
+        if (!playerController)
+        {
+            if (playerRoot) playerController = playerRoot.GetComponent<PlayerController>();
+            if (!playerController) playerController = FindObjectOfType<PlayerController>();
+        }
+
+        if (!trackRunner)
+        {
+            if (playerRoot) trackRunner = playerRoot.GetComponent<TrackRunner>();
+            if (!trackRunner) trackRunner = FindObjectOfType<TrackRunner>();
+        }
+
+        if (!cameraFocusTarget && playerRoot)
+            cameraFocusTarget = playerRoot;
+
+        HookPlayerHealth();
+    }
+
+    void OnDisable()
+    {
+        UnhookPlayerHealth();
+    }
 
     void Start()
     {
@@ -63,6 +121,12 @@ public class GameStateManager : MonoBehaviour
             return;
         }
 
+        if (playerController != null)
+            playerController.PlayDiveIn();
+
+        if (uiManager != null)
+            uiManager.StartGame(false);
+
         if (transitionRoutine != null) return;
         transitionRoutine = StartCoroutine(TransitionToPlayRoutine());
     }
@@ -75,12 +139,18 @@ public class GameStateManager : MonoBehaviour
             return;
         }
 
+        if (uiManager != null)
+            uiManager.CancelGameOverAutoReturn();
+
         if (transitionRoutine != null) return;
         transitionRoutine = StartCoroutine(TransitionToMenuRoutine());
     }
 
     public void OnPlayerDied()
     {
+        if (CurrentState == GameState.GameOver)
+            return;
+
         if (CurrentState != GameState.Playing)
         {
             Debug.LogWarning($"OnPlayerDied called while in {CurrentState}, ignoring.", this);
@@ -89,45 +159,102 @@ public class GameStateManager : MonoBehaviour
 
         lastDeathPos = playerRoot ? playerRoot.position : Vector3.zero;
 
+        if (scoreManager != null)
+            scoreManager.StopScoring();
+
         SetGameplayBehavioursEnabled(false);
-        SetUIState(false, false, true);
+        if (uiManager != null)
+            uiManager.GameOver();
+        else
+            SetUIState(false, false, true);
+
+        if (playerController != null)
+            playerController.PlayDeath();
 
         CurrentState = GameState.GameOver;
+    }
+
+    void HookPlayerHealth()
+    {
+        if (!playerHealth)
+            playerHealth = FindObjectOfType<PlayerHealth>();
+
+        if (playerHealth)
+            playerHealth.OnDeath += HandlePlayerDeath;
+        else if (Application.isPlaying)
+            Debug.LogWarning("GameStateManager: No PlayerHealth assigned or found; death will not trigger game over.", this);
+    }
+
+    void UnhookPlayerHealth()
+    {
+        if (playerHealth)
+            playerHealth.OnDeath -= HandlePlayerDeath;
+    }
+
+    void HandlePlayerDeath()
+    {
+        OnPlayerDied();
     }
 
     IEnumerator TransitionToPlayRoutine()
     {
         CurrentState = GameState.TransitionToPlay;
 
-        SwitchToGameplayCamera();
+        if (useCameraBlend && transitionCamera != null)
+            yield return BlendCamera(orbitCameraGO, gameplayCameraGO, cameraBlendDuration);
+        else
+            SwitchToGameplayCamera();
         SetUIState(false, false, false);
+
+        if (trackRunner != null)
+            trackRunner.snapToStartOnReset = false;
 
         ResetAllSystems();
 
-        float delay = Mathf.Max(0f, startDelay);
-        if (playerRoot && delay > 0f)
+        Vector3 targetPos = playerRoot ? playerRoot.position : Vector3.zero;
+        Quaternion targetRot = playerRoot ? playerRoot.rotation : Quaternion.identity;
+        if (TryGetTrackStartPose(out var pos, out var rot))
         {
-            Vector3 from = playerRoot.position;
-            Vector3 to = from + Vector3.up * startDiveOffset;
+            targetPos = pos;
+            targetRot = rot;
+        }
+
+        float diveDuration = Mathf.Max(0f, startDelay);
+        if (playerRoot && diveDuration > 0f)
+        {
+            Vector3 fromPos = playerRoot.position;
+            Quaternion fromRot = playerRoot.rotation;
 
             float t = 0f;
-            while (t < delay)
+            while (t < diveDuration)
             {
                 t += Time.deltaTime;
-                float u = Mathf.Clamp01(t / delay);
-                playerRoot.position = Vector3.Lerp(from, to, u);
+                float u = Mathf.Clamp01(t / diveDuration);
+                float eased = EaseMove(u);
+                playerRoot.SetPositionAndRotation(
+                    Vector3.Lerp(fromPos, targetPos, eased),
+                    Quaternion.Slerp(fromRot, targetRot, eased));
                 yield return null;
             }
+        }
 
-            playerRoot.position = to;
-        }
-        else if (delay > 0f)
-        {
-            yield return new WaitForSeconds(delay);
-        }
+        if (playerRoot)
+            playerRoot.SetPositionAndRotation(targetPos, targetRot);
+
+        if (trackRunner != null)
+            trackRunner.snapToStartOnReset = true;
 
         SetGameplayBehavioursEnabled(true);
         SetUIState(false, true, false);
+
+        if (scoreManager != null)
+        {
+            scoreManager.ResetAllScores();
+            scoreManager.StartScoring();
+        }
+
+        if (playerController != null)
+            playerController.PlaySurfing();
 
         CurrentState = GameState.Playing;
         transitionRoutine = null;
@@ -138,7 +265,14 @@ public class GameStateManager : MonoBehaviour
         CurrentState = GameState.TransitionToMenu;
         SetUIState(false, false, false);
 
-        SwitchToGameplayCamera(); // keep gameplay view during the swim up
+        if (scoreManager != null)
+            scoreManager.StopScoring();
+
+        if (playerController != null)
+            playerController.PlaySwimSurface();
+
+        // Keep gameplay view during the swim up (no blend on return).
+        SwitchToGameplayCamera();
 
         Vector3 surfacePos = lastDeathPos + Vector3.up * surfaceHeightOffset;
 
@@ -174,12 +308,25 @@ public class GameStateManager : MonoBehaviour
 
     void HardResetToMenu()
     {
+        bool shouldSyncUI = uiManager != null && CurrentState != GameState.MenuIdle;
+
         SetGameplayBehavioursEnabled(false);
         ResetAllSystems();
         ResetPlayerToMenuPose();
 
         SwitchToOrbitCamera();
-        SetUIState(true, false, false);
+        if (uiManager != null)
+        {
+            if (shouldSyncUI)
+                uiManager.ReturnToMainMenu();
+        }
+        else
+        {
+            SetUIState(true, false, false);
+        }
+
+        if (playerController != null)
+            playerController.PlayIdle();
 
         CurrentState = GameState.MenuIdle;
     }
@@ -192,7 +339,27 @@ public class GameStateManager : MonoBehaviour
             transitionRoutine = null;
         }
 
+        if (scoreManager != null)
+            scoreManager.StopScoring();
+
         HardResetToMenu();
+    }
+
+    bool TryGetTrackStartPose(out Vector3 pos, out Quaternion rot)
+    {
+        pos = playerRoot ? playerRoot.position : Vector3.zero;
+        rot = playerRoot ? playerRoot.rotation : Quaternion.identity;
+
+        if (!trackRunner || !trackRunner.track) return false;
+
+        Vector3 p = default, fwd = default, up = default, right = default;
+        Vector3 lastUp = Vector3.up;
+        TrackSample.At(trackRunner.track, 0f, trackRunner.track.Spline.Closed, ref p, ref fwd, ref up, ref right, ref lastUp);
+
+        float half = trackRunner.laneWidth * 0.5f;
+        pos = p + right * (-half) + up * trackRunner.hover;
+        rot = Quaternion.LookRotation(fwd, up);
+        return true;
     }
 
     void ResetPlayerToMenuPose()
@@ -282,6 +449,9 @@ public class GameStateManager : MonoBehaviour
 
     void SetUIState(bool showMenu, bool showHud, bool showGameOver)
     {
+        if (uiManager != null)
+            return;
+
         if (menuUIRoot) menuUIRoot.SetActive(showMenu);
         if (hudUIRoot) hudUIRoot.SetActive(showHud);
         if (gameOverUIRoot) gameOverUIRoot.SetActive(showGameOver);
@@ -289,14 +459,86 @@ public class GameStateManager : MonoBehaviour
 
     void SwitchToOrbitCamera()
     {
+        if (isBlendingCamera)
+            return;
         SetCameraActive(orbitCameraGO, true);
         SetCameraActive(gameplayCameraGO, false);
     }
 
     void SwitchToGameplayCamera()
     {
+        if (isBlendingCamera)
+            return;
         SetCameraActive(orbitCameraGO, false);
         SetCameraActive(gameplayCameraGO, true);
+    }
+
+    IEnumerator BlendCamera(GameObject fromCamGO, GameObject toCamGO, float duration)
+    {
+        if (transitionCamera == null)
+            yield break;
+
+        if (fromCamGO == null || toCamGO == null)
+            yield break;
+
+        var fromCam = fromCamGO.GetComponent<Camera>();
+        var toCam = toCamGO.GetComponent<Camera>();
+
+        if (fromCam == null || toCam == null)
+            yield break;
+
+        if (cameraBlendRoutine != null)
+            StopCoroutine(cameraBlendRoutine);
+
+        cameraBlendRoutine = StartCoroutine(BlendRoutine(fromCam, toCam, duration));
+        yield return cameraBlendRoutine;
+        cameraBlendRoutine = null;
+    }
+
+    IEnumerator BlendRoutine(Camera fromCam, Camera toCam, float duration)
+    {
+        isBlendingCamera = true;
+        SetCameraActive(fromCam.gameObject, false);
+        SetCameraActive(toCam.gameObject, false);
+        SetCameraActive(transitionCamera.gameObject, true);
+
+        Transform tCam = transitionCamera.transform;
+        tCam.position = fromCam.transform.position;
+        tCam.rotation = fromCam.transform.rotation;
+        transitionCamera.fieldOfView = fromCam.fieldOfView;
+
+        float t = 0f;
+        float d = Mathf.Max(0.001f, duration);
+        while (t < d)
+        {
+            t += Time.deltaTime;
+            float u = Mathf.Clamp01(t / d);
+            float eased = EaseMove(u);
+
+            tCam.position = Vector3.Lerp(fromCam.transform.position, toCam.transform.position, eased);
+            if (focusPlayerDuringBlend && cameraFocusTarget != null)
+            {
+                Vector3 focusPos = cameraFocusTarget.position + cameraFocusOffset;
+                Vector3 dir = focusPos - tCam.position;
+                if (dir.sqrMagnitude > 0.0001f)
+                {
+                    Quaternion look = Quaternion.LookRotation(dir.normalized, Vector3.up);
+                    float step = Mathf.Max(0f, focusRotationSpeed) * Time.deltaTime;
+                    tCam.rotation = Quaternion.RotateTowards(tCam.rotation, look, step);
+                }
+            }
+            else
+            {
+                tCam.rotation = Quaternion.Slerp(fromCam.transform.rotation, toCam.transform.rotation, eased);
+            }
+            transitionCamera.fieldOfView = Mathf.Lerp(fromCam.fieldOfView, toCam.fieldOfView, eased);
+
+            yield return null;
+        }
+
+        SetCameraActive(transitionCamera.gameObject, false);
+        SetCameraActive(toCam.gameObject, true);
+        isBlendingCamera = false;
     }
 
     void SetCameraActive(GameObject camGO, bool active)

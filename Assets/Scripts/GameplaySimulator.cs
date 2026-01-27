@@ -16,20 +16,20 @@ public class GameplaySimulator : MonoBehaviour
 
     void Update()
     {
-        if (!gameplayActive)
-            return;
+        // if (!gameplayActive)
+        //     return;
 
-        if (Input.GetKeyDown(KeyCode.A))
-            SimulatePickup();
+        // if (Input.GetKeyDown(KeyCode.A))
+        //     SimulatePickup();
 
-        if (Input.GetKeyDown(KeyCode.S))
-            SimulateMiss();
+        // if (Input.GetKeyDown(KeyCode.S))
+        //     SimulateMiss();
 
-        if (Input.GetKeyDown(KeyCode.D))
-            SimulateDeath();
+        // if (Input.GetKeyDown(KeyCode.D))
+        //     SimulateDeath();
 
-        if (Input.GetKeyDown(KeyCode.F))
-            TogglePause();
+        // if (Input.GetKeyDown(KeyCode.F))
+        //     TogglePause();
     }
 
     // Hooks called by UI

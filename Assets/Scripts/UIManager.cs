@@ -33,6 +33,7 @@ public class UIManager : MonoBehaviour
 
     [Header("Gameplay")]
     [SerializeField] private GameplaySimulator gameplaySimulator;
+    [SerializeField] private GameStateManager gameStateManager;
 
     // FSM
     private enum UIState
@@ -245,7 +246,7 @@ public class UIManager : MonoBehaviour
 
     // Game hooks 
 
-    public void StartGame()
+    public void StartGame(bool notifyGameState = true)
     {
         if (state == UIState.Gameplay || state == UIState.Transition_ToGameplay || state == UIState.Pause)
             return;
@@ -256,10 +257,14 @@ public class UIManager : MonoBehaviour
         TransitionTo(UIState.Transition_ToGameplay);
         AudioManager.I?.PlaySfx(SfxId.Submerge);
 
-        if (gameplaySimulator != null)
-            gameplaySimulator.BeginGameplay();
-        else
-            FindObjectOfType<GameplaySimulator>()?.BeginGameplay();
+        if (notifyGameState && gameStateManager != null)
+        {
+            gameStateManager.OnPlayPressed();
+        }
+        else if (notifyGameState)
+        {
+            Debug.LogWarning("GameStateManager reference missing on UIManager.", this);
+        }
     }
 
     public void GameOver()
@@ -288,6 +293,14 @@ public class UIManager : MonoBehaviour
 
         SetCanvasActive(mainMenu, true);
         TransitionTo(UIState.MainMenu_Intro);
+    }
+
+    public void RequestReturnToMenu()
+    {
+        if (gameStateManager != null)
+            gameStateManager.OnRestartPressed();
+        else
+            ReturnToMainMenu();
     }
 
     // Pause buttons
@@ -461,9 +474,19 @@ public class UIManager : MonoBehaviour
         yield return new WaitForSecondsRealtime(13f);
 
         if (state == UIState.GameOver)
-            ReturnToMainMenu();
+        {
+            if (gameStateManager != null)
+                gameStateManager.OnRestartPressed();
+            else
+                ReturnToMainMenu();
+        }
 
         gameOverReturnCoroutine = null;
+    }
+
+    public void CancelGameOverAutoReturn()
+    {
+        StopGameOverReturn();
     }
 
     // Auto fade

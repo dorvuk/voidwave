@@ -9,14 +9,26 @@ public class PointFloat : MonoBehaviour
     public float rotateSpeed = 60f;
 
     Vector3 startLocalPos;
+    bool needsRecenter;
 
     void Start()
     {
         startLocalPos = transform.localPosition;
     }
 
+    void OnEnable()
+    {
+        needsRecenter = true;
+    }
+
     void Update()
     {
+        if (needsRecenter)
+        {
+            startLocalPos = transform.localPosition;
+            needsRecenter = false;
+        }
+
         float y = Mathf.Sin(Time.time * floatSpeed) * floatHeight;
         transform.localPosition = startLocalPos + Vector3.up * y;
 

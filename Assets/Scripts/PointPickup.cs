@@ -12,7 +12,7 @@ public class PointPickup : MonoBehaviour
         if (score != null)
             score.PickUpPoint();
 
-        Destroy(gameObject);
+        gameObject.SetActive(false);
     }
 }
 

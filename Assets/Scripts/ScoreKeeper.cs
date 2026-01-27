@@ -27,6 +27,7 @@ public class ScoreManager : MonoBehaviour
     public int CurrentScore { get; private set; }
     public int HighScore { get; private set; }
     private int bankPoints;
+    private float passiveRemainder;
     private float multiplier;
     private bool ticking;
     private Coroutine tickCoroutine;
@@ -83,6 +84,8 @@ public class ScoreManager : MonoBehaviour
     }
     public void PickUpPoint()
     {
+        FlushPassiveRemainder();
+
         bankPoints += pointsPerPickup;
         multiplier += multiplierStep;
 
@@ -94,6 +97,8 @@ public class ScoreManager : MonoBehaviour
     }
     public void ResetCounter()
     {
+        FlushPassiveRemainder();
+
         if (streakCount > 0)
         {
             AudioManager.I.PlaySfx(SfxId.LoseStreak);
@@ -112,6 +117,7 @@ public class ScoreManager : MonoBehaviour
 
         bankPoints = 0;
         multiplier = 1;
+        passiveRemainder = 0f;
 
         RefreshAllUI();
     }
@@ -122,6 +128,7 @@ public class ScoreManager : MonoBehaviour
         CurrentScore = 0;
         bankPoints = 0;
         multiplier = 1;
+        passiveRemainder = 0f;
 
         RefreshAllUI();
     }
@@ -129,13 +136,22 @@ public class ScoreManager : MonoBehaviour
     // Helpers
     IEnumerator SecondTick()
     {
-        var wait = new WaitForSeconds(0.1f);
         while (ticking)
         {
-            yield return wait;
-            bankPoints += 1;
+            float delta = Time.deltaTime;
+            if (delta > 0f && pointsPerSecond > 0)
+            {
+                passiveRemainder += pointsPerSecond * delta;
+                int add = Mathf.FloorToInt(passiveRemainder);
+                if (add > 0)
+                {
+                    bankPoints += add;
+                    passiveRemainder -= add;
+                    RefreshMultiplierUI();
+                }
+            }
 
-            RefreshMultiplierUI();
+            yield return null;
         }
     }
 
@@ -227,6 +243,8 @@ public class ScoreManager : MonoBehaviour
 
     public void FinalizeRunScore()
     {
+        FlushPassiveRemainder();
+
         int bankedScore = Mathf.RoundToInt(bankPoints * multiplier);
         if (bankedScore > 0)
             AddToCurrentScore(bankedScore);
@@ -234,7 +252,19 @@ public class ScoreManager : MonoBehaviour
         streakCount = 0;
         bankPoints = 0;
         multiplier = 1;
+        passiveRemainder = 0f;
         RefreshAllUI();
+    }
+
+    void FlushPassiveRemainder()
+    {
+        if (passiveRemainder <= 0f) return;
+        int add = Mathf.FloorToInt(passiveRemainder);
+        if (add > 0)
+        {
+            bankPoints += add;
+            passiveRemainder -= add;
+        }
     }
 
 }

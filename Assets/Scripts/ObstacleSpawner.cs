@@ -130,6 +130,24 @@ public class ObstacleSpawner : MonoBehaviour, IRunResettable
         pool.Add(obs);
     }
 
+    public bool IsObstacleNear(float sGlobal, int lane, float distance)
+    {
+        if (active.Count == 0) return false;
+
+        float minS = sGlobal - distance;
+        float maxS = sGlobal + distance;
+
+        for (int i = 0; i < active.Count; i++)
+        {
+            var obs = active[i];
+            if (!obs) continue;
+            if (obs.Lane != lane) continue;
+            if (obs.SGlobal >= minS && obs.SGlobal <= maxS) return true;
+        }
+
+        return false;
+    }
+
     public void ResetRun()
     {
         for (int i = active.Count - 1; i >= 0; i--)
