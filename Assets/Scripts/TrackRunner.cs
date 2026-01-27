@@ -7,7 +7,14 @@ public class TrackRunner : MonoBehaviour, IRunResettable
 {
     public SplineContainer track;
     public SplineGenerator generator;
+
     public float speed = 18f;
+
+    [Header("Speed Ramp (Soft Cap)")]
+    public float startSpeed = 18f;
+    public float maxSpeed = 38f;
+    public float rampRate = 0.12f;
+
     public float laneWidth = 2.2f;
 
     public float steer = 8f;
@@ -24,9 +31,10 @@ public class TrackRunner : MonoBehaviour, IRunResettable
     public float gravity = 30f;
     public float laneSwitchSmooth = 10f;
     public float rotationSmooth = 12f;
+
     float jumpVel;
     float jumpOffset;
-    int lane = 0; // 0 = left, 1 = right
+    int lane = 0;
     float yVel;
     [Range(0f, 1f)] public float alignToTrack = 1f;
 
@@ -35,6 +43,9 @@ public class TrackRunner : MonoBehaviour, IRunResettable
     float s;
     float x;
     float xVel;
+
+    float runTime;
+
     public event Action<Obstacle> ObstacleHit;
 
     Vector3 lastUp = Vector3.up;
@@ -51,6 +62,9 @@ public class TrackRunner : MonoBehaviour, IRunResettable
         s = 0f;
         lane = 0;
         x = LaneOffset(lane);
+
+        runTime = 0f;
+        speed = startSpeed;
     }
 
     void Update()
@@ -60,6 +74,10 @@ public class TrackRunner : MonoBehaviour, IRunResettable
 
         float len = track.Spline.GetLength();
         if (len <= 0.01f) return;
+
+        runTime += Time.deltaTime;
+        float t = Mathf.Max(0f, runTime);
+        speed = maxSpeed - (maxSpeed - startSpeed) * Mathf.Exp(-rampRate * t);
 
         s += speed * Time.deltaTime;
 
@@ -83,7 +101,6 @@ public class TrackRunner : MonoBehaviour, IRunResettable
 
         float steerRoll = Mathf.Clamp(x / Mathf.Max(0.001f, laneWidth), -1f, 1f) * rollMax;
 
-        // curvature roll: sample a bit ahead
         float ahead = 1.0f;
         float s2 = doLoop ? Mathf.Repeat(s + ahead, len) : Mathf.Max(0f, s + ahead - removed);
 
@@ -164,6 +181,9 @@ public class TrackRunner : MonoBehaviour, IRunResettable
         if (!generator) generator = track.GetComponent<SplineGenerator>();
 
         s = 0f;
+        runTime = 0f;
+        speed = startSpeed;
+
         lane = 0;
         x = LaneOffset(lane);
         xVel = 0f;
