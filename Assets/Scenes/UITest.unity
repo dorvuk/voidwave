@@ -695,6 +695,7 @@ MonoBehaviour:
   scoreManager: {fileID: 1936962093}
   highScorePopupAnimator: {fileID: 268189124}
   gameplaySimulator: {fileID: 1896034356}
+  gameStateManager: {fileID: 0}
   state: 0
 --- !u!114 &268189124
 MonoBehaviour:
