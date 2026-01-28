@@ -12,8 +12,8 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 13edbff37599bc44291beafba22067df, type: 3}
   m_Name: GameAudioLibrary
   m_EditorClassIdentifier: 
-  mainMenuTheme: {fileID: 8300000, guid: bc0c17b5b4201d4499813a47fc526a2f, type: 3}
-  gameplayTheme: {fileID: 8300000, guid: 003fc052bd0eb68428f0c06492f35a33, type: 3}
+  mainMenuTheme: {fileID: 8300000, guid: 784485642dbad8e40b4ec2292529ae01, type: 3}
+  gameplayTheme: {fileID: 8300000, guid: 03e23ab65153db0419d0ea1f6f758a4b, type: 3}
   endGameTheme: {fileID: 8300000, guid: efc534c9747ca1242a38e178bf70a7df, type: 3}
   buttonHover:
   - {fileID: 8300000, guid: 2781dec647dd4024389d4c184f0a9d47, type: 3}
@@ -21,20 +21,23 @@ MonoBehaviour:
   buttonClick:
   - {fileID: 8300000, guid: 462e5aafae2b35049854c3517c6e6023, type: 3}
   pointCollect:
-  - {fileID: 8300000, guid: 8bd79fd18fe0243488a99130c1f27aeb, type: 3}
-  - {fileID: 8300000, guid: 9b7bf806cc02ec742876fc41881e0f52, type: 3}
-  - {fileID: 8300000, guid: d5deb7dc45adc6a4cb5dfc22108cf035, type: 3}
-  - {fileID: 8300000, guid: 6c160d13daa3e404f881503d64b55852, type: 3}
-  - {fileID: 8300000, guid: da4eb8de2ad62a44ab9e6ab0b56fc574, type: 3}
-  - {fileID: 8300000, guid: c19b2ca5c22466943a4aeb97aac3387f, type: 3}
-  - {fileID: 8300000, guid: 85eb3d066846ac64580a50eeb552b551, type: 3}
-  - {fileID: 8300000, guid: e62c0cee23d49404cb079c381296db19, type: 3}
+  - {fileID: 8300000, guid: 80dcad61d3867974d9563c202d54f696, type: 3}
+  - {fileID: 8300000, guid: f5f1c1e7b8c244b4297454a003a64c66, type: 3}
+  - {fileID: 8300000, guid: 24ec24b0972870e4b9ca4df6e856d6d1, type: 3}
+  - {fileID: 8300000, guid: eff8afa63752ffb48b48587ded5891d1, type: 3}
+  - {fileID: 8300000, guid: 543913015e5c3474f964451e71883a1b, type: 3}
+  - {fileID: 8300000, guid: f5417ccae19175a4aae6d5732a9663ef, type: 3}
+  - {fileID: 8300000, guid: d88e9230ea7a0214fbbca65f851c1907, type: 3}
+  - {fileID: 8300000, guid: 99e4efd6281af6e499520ed576c12a4a, type: 3}
+  - {fileID: 8300000, guid: e2e2a65e6fd022e4b8de1f0f66482d57, type: 3}
+  - {fileID: 8300000, guid: 8c89107ff078fa8449432e85bb4d51c5, type: 3}
+  - {fileID: 8300000, guid: ae14387f7964acd4d908ca13c9685744, type: 3}
   surf:
   - {fileID: 8300000, guid: 003fc052bd0eb68428f0c06492f35a33, type: 3}
   move:
   - {fileID: 8300000, guid: 526d7998690b0654f98d9aac4c20568b, type: 3}
   - {fileID: 8300000, guid: 96ac1b5c2e2c6314797e5daeb108c796, type: 3}
-  - {fileID: 8300000, guid: 8c9826c65d4e33541975b3ed471eef21, type: 3}
+  - {fileID: 8300000, guid: d42e419945997fa459360a2cf86ad977, type: 3}
   jump:
   - {fileID: 8300000, guid: 768d65c3fb2c7b54c9ae47626fe668a0, type: 3}
   - {fileID: 8300000, guid: f42a922578ae9794ebdff8ca49fe56da, type: 3}

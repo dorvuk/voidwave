@@ -162,6 +162,7 @@ public class PlayerController : MonoBehaviour
     {
         if (!TryTrigger(hitTrigger))
             PlayState(hitState);
+            AudioManager.I.PlaySfx(SfxId.ObstacleHit);
     }
 
     void CacheModelPose()

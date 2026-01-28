@@ -35,6 +35,10 @@ public class UIManager : MonoBehaviour
     [SerializeField] private GameplaySimulator gameplaySimulator;
     [SerializeField] private GameStateManager gameStateManager;
 
+    [Header("Onboarding")]
+    public CanvasGroup onboarding;
+    private readonly string onboardingSeenKey = "OnboardingSeen";
+
     // FSM
     private enum UIState
     {
@@ -78,6 +82,8 @@ public class UIManager : MonoBehaviour
         InitCanvas(creditsPanel, false);
         InitCanvas(quitConfirmPanel, false);
 
+        InitCanvas(onboarding, false);
+
         TransitionTo(UIState.MainMenu_Intro);
     }
 
@@ -85,6 +91,19 @@ public class UIManager : MonoBehaviour
     {
         if (Input.GetKeyDown(KeyCode.Escape))
             OnEscape();
+
+
+        // Bad and hacky. Should have a hook for when lane is changed.
+        if ((state == UIState.Gameplay) && (Input.GetKeyDown(KeyCode.A) || Input.GetKeyDown(KeyCode.D) ||
+            Input.GetKeyDown(KeyCode.LeftArrow) || Input.GetKeyDown(KeyCode.RightArrow)))
+        {
+            AudioManager.I.PlaySfx(SfxId.Move);
+        }
+
+        if ((state == UIState.Gameplay) && Input.GetKeyDown(KeyCode.Space))
+        {
+            AudioManager.I.PlaySfx(SfxId.Jump);
+        }
 
         if ((state == UIState.MainMenu_Intro ||
              state == UIState.MainMenu_IdleVisible ||
@@ -234,14 +253,18 @@ public class UIManager : MonoBehaviour
 
     public void NotifyPaused()
     {
-        if (state == UIState.Gameplay)
+        if (state == UIState.Gameplay) {
+            AudioManager.I.SetPausedAudio(true);
             TransitionTo(UIState.Pause);
+        }
     }
 
     public void NotifyResumed()
     {
-        if (state == UIState.Pause)
+        if (state == UIState.Pause) {
+            AudioManager.I.SetPausedAudio(false);
             TransitionTo(UIState.Gameplay);
+        }
     }
 
     // Game hooks 
@@ -255,7 +278,6 @@ public class UIManager : MonoBehaviour
 
         ForceDisableCanvas(mainMenu);
         TransitionTo(UIState.Transition_ToGameplay);
-        AudioManager.I?.PlaySfx(SfxId.Submerge);
 
         if (notifyGameState && gameStateManager != null)
         {
@@ -277,8 +299,6 @@ public class UIManager : MonoBehaviour
 
     public void ReturnToMainMenu()
     {
-        AudioManager.I?.PlaySfx(SfxId.Surface);
-
         StopGameOverReturn();
 
         SetCanvasActive(gameOver, false);
@@ -297,6 +317,9 @@ public class UIManager : MonoBehaviour
 
     public void RequestReturnToMenu()
     {
+        AudioManager.I.SetPausedAudio(false);
+        AudioManager.I?.PlaySfx(SfxId.Surface);
+        
         if (gameStateManager != null)
             gameStateManager.OnRestartPressed();
         else
@@ -358,6 +381,7 @@ public class UIManager : MonoBehaviour
 
     private IEnumerator Enter_MainMenuIntro()
     {
+        yield return new WaitForSecondsRealtime(1f);
         AudioManager.I?.PlayMusic(MusicTrack.MainMenuTheme);
 
         SetCanvasActive(gameplay, false);
@@ -399,8 +423,9 @@ public class UIManager : MonoBehaviour
     private IEnumerator Enter_TransitionToGameplay()
     {
         HideMainMenuUI();
-        yield return new WaitForSecondsRealtime(fastFadeDuration);
-
+        yield return new WaitForSecondsRealtime(slowFadeDuration);
+        
+        AudioManager.I?.PlaySfx(SfxId.Submerge); 
         AudioManager.I?.PlayMusic(MusicTrack.GameplayTheme);
 
         SetCanvasActive(mainMenu, false);
@@ -416,6 +441,7 @@ public class UIManager : MonoBehaviour
     {
         StopGameOverReturn();
         SetCanvasActive(pause, false);
+        TryShowOnboardingOnce();
     }
 
     private IEnumerator Enter_Pause()
@@ -434,6 +460,8 @@ public class UIManager : MonoBehaviour
     {
         AudioManager.I?.PlayMusic(MusicTrack.EndGameTheme);
         AudioManager.I?.PlaySfx(SfxId.Death);
+
+        yield return new WaitForSecondsRealtime(4f);
 
         SetCanvasActive(pause, false);
         SetCanvasActive(gameplay, false);
@@ -471,7 +499,7 @@ public class UIManager : MonoBehaviour
 
     private IEnumerator ReturnToMenuAfterDelay()
     {
-        yield return new WaitForSecondsRealtime(13f);
+        yield return new WaitForSecondsRealtime(10f);
 
         if (state == UIState.GameOver)
         {
@@ -601,7 +629,7 @@ public class UIManager : MonoBehaviour
 
     private Coroutine FadeIn(CanvasGroup cg, float duration, bool allowInteractionWhileVisible = true)
     {
-        return FadeTo(cg, 1f, duration, disableGameObjectOnZero: false, allowInteractionWhileVisible: allowInteractionWhileVisible);
+        return FadeTo(cg, 0.9f, duration, disableGameObjectOnZero: false, allowInteractionWhileVisible: allowInteractionWhileVisible);
     }
 
     private Coroutine FadeOut(CanvasGroup cg, float duration, bool disableOnZero = false)
@@ -617,7 +645,7 @@ public class UIManager : MonoBehaviour
 
         KillFade(cg);
 
-        cg.alpha = visible ? 1f : 0f;
+        cg.alpha = visible ? 0.9f : 0f;
         cg.interactable = visible;
         cg.blocksRaycasts = visible;
         cg.gameObject.SetActive(true);
@@ -651,5 +679,52 @@ public class UIManager : MonoBehaviour
         cg.interactable = false;
         cg.blocksRaycasts = false;
         cg.gameObject.SetActive(false);
+    }
+
+        public void RestartRun()
+{
+    StopGameOverReturn();
+
+    Time.timeScale = 1f;
+
+    gameplaySimulator.EndGameplay();
+
+    SetCanvasActive(pause, false);
+    SetCanvasActive(gameOver, false);
+
+    SetCanvasActive(mainMenu, false);
+    SetCanvasActive(gameplay, true);
+
+    TransitionTo(UIState.Transition_ToGameplay);
+
+    AudioManager.I.PlaySfx(SfxId.Submerge);
+
+    gameplaySimulator.BeginGameplay();
+}
+
+    private void TryShowOnboardingOnce()
+    {
+        if (onboarding == null) return;
+
+        if (PlayerPrefs.GetInt(onboardingSeenKey, 0) == 1)
+            return;
+
+        PlayerPrefs.SetInt(onboardingSeenKey, 1);
+        PlayerPrefs.Save();
+
+        StartCoroutine(OnboardingRoutine());
+    }
+
+    private IEnumerator OnboardingRoutine()
+    {
+        onboarding.gameObject.SetActive(true);
+        onboarding.blocksRaycasts = false;
+        onboarding.interactable = false;
+
+        FadeIn(onboarding, fastFadeDuration, allowInteractionWhileVisible: false);
+
+        yield return new WaitForSecondsRealtime(6f);
+
+        FadeOut(onboarding, fastFadeDuration, disableOnZero: true);
     }
 }

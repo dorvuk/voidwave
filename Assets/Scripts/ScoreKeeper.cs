@@ -58,6 +58,7 @@ public class ScoreManager : MonoBehaviour
         if (Input.GetKeyDown(KeyCode.G))
         {
             PlayerPrefs.DeleteKey(highScoreKey);
+            PlayerPrefs.DeleteKey("OnboardingSeen");
             PlayerPrefs.Save();
 
             HighScore = 0;
@@ -90,7 +91,7 @@ public class ScoreManager : MonoBehaviour
         multiplier += multiplierStep;
 
         streakCount++;
-        streakCount = Mathf.Min(7, streakCount);
+        streakCount = Mathf.Min(10, streakCount);
         AudioManager.I.PlayPointCollectTier(streakCount);
 
         RefreshMultiplierUI();
