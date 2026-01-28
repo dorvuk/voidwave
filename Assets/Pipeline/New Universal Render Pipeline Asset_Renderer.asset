@@ -18,6 +18,28 @@ MonoBehaviour:
     renderPassEvent: 500
     applyInSceneView: 0
     applyInPreview: 0
+--- !u!114 &-1387445811560135984
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 1da1f5b1f37e9b34da4c29c89838dc59, type: 3}
+  m_Name: Underwater Effects
+  m_EditorClassIdentifier: 
+  m_Active: 0
+  settings:
+    material: {fileID: 2100000, guid: d7eff91adf883494db9dbd5fd180ae71, type: 2}
+    renderPassEvent: 400
+    color: {r: 0.017354928, g: 0.0913575, b: 0.24528301, a: 0.54509807}
+    distance: 500
+    alpha: 0
+    refraction: -0.76
+    normalmap: {fileID: 2800000, guid: 08ef20a01c156e1428ca81211ca1275d, type: 3}
+    UV: {x: 1, y: 1, z: 0.2, w: 0.1}
 --- !u!114 &11400000
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -35,7 +57,8 @@ MonoBehaviour:
     hdrDebugViewPS: {fileID: 4800000, guid: 573620ae32aec764abd4d728906d2587, type: 3}
   m_RendererFeatures:
   - {fileID: -1868398588873279521}
-  m_RendererFeatureMap: dff75df3611d12e6
+  - {fileID: -1387445811560135984}
+  m_RendererFeatureMap: dff75df3611d12e6d0c2daa862cdbeec
   m_UseNativeRenderPass: 0
   postProcessData: {fileID: 11400000, guid: 41439944d30ece34e96484bdb6645b55, type: 2}
   xrSystemData: {fileID: 11400000, guid: 60e1133243b97e347b653163a8c01b64, type: 2}
