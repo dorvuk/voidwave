@@ -15,13 +15,14 @@ public class AudioManager : MonoBehaviour
 
     [Header("SFX")]
     [SerializeField] private AudioSource sfxSource;
+    [SerializeField] private AudioSource uiSource;
 
     [Header("Global Muffle")]
     [SerializeField] private float muffledCutoffHz = 900f;
     [SerializeField] private float normalCutoffHz = 22000f;
 
     [Header("Pitch Variation")]
-    [SerializeField] private bool randomPitch = true;
+    [SerializeField] private bool randomPitch = false;
     [SerializeField] private float minPitch = 0.97f;
     [SerializeField] private float maxPitch = 1.03f;
 
@@ -48,6 +49,11 @@ public class AudioManager : MonoBehaviour
         SetupMusicSource(musicA);
         SetupMusicSource(musicB);
         SetupSfxSource(sfxSource);
+
+        if (uiSource == null) uiSource = gameObject.AddComponent<AudioSource>();
+        SetupSfxSource(uiSource);
+
+        uiSource.ignoreListenerPause = true;
 
         // Ensure low-pass filters exist on all outputs
         lpMusicA = EnsureLowPass(musicA);
@@ -219,9 +225,32 @@ public class AudioManager : MonoBehaviour
         AudioClip clip = lib.pointCollect[idx];
         if (clip == null) return;
 
-        sfxSource.pitch = Random.Range(0.98f, 1.02f);
-
         sfxSource.PlayOneShot(clip);
+    }
+
+        public void SetPausedAudio(bool paused)
+    {
+        AudioListener.pause = paused;
+
+        if (paused)
+        {
+            if (musicA != null && musicA.isPlaying) musicA.Pause();
+            if (musicB != null && musicB.isPlaying) musicB.Pause();
+        }
+        else
+        {
+            if (musicA != null) musicA.UnPause();
+            if (musicB != null) musicB.UnPause();
+        }
+    }
+
+    public void PlayUiSfx(SfxId id)
+    {
+        if (lib == null) return;
+        AudioClip clip = GetRandomClip(id);
+        if (clip == null) return;
+
+        uiSource.PlayOneShot(clip);
     }
 
 }
