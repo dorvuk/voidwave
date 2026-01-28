@@ -27,7 +27,7 @@ public class PlayerController : MonoBehaviour
 
     [Header("Animation Triggers")]
     public string diveTrigger = "";
-    public string hitTrigger = "getshit";
+    public string hitTrigger = "";
 
     [Header("Swim Rotation")]
     public Vector3 swimRotationOffset = new Vector3(-90f, 0f, 0f);

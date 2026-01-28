@@ -14,10 +14,10 @@ OcclusionCullingSettings:
 RenderSettings:
   m_ObjectHideFlags: 0
   serializedVersion: 9
-  m_Fog: 0
-  m_FogColor: {r: 0.5, g: 0.5, b: 0.5, a: 1}
+  m_Fog: 1
+  m_FogColor: {r: 0.5383734, g: 0.5076095, b: 0.5754717, a: 1}
   m_FogMode: 3
-  m_FogDensity: 0.01
+  m_FogDensity: 0.0008
   m_LinearFogStart: 0
   m_LinearFogEnd: 300
   m_AmbientSkyColor: {r: 1, g: 1, b: 1, a: 1}
@@ -35,10 +35,10 @@ RenderSettings:
   m_DefaultReflectionMode: 0
   m_DefaultReflectionResolution: 128
   m_ReflectionBounces: 1
-  m_ReflectionIntensity: 1
+  m_ReflectionIntensity: 0.845
   m_CustomReflection: {fileID: 0}
   m_Sun: {fileID: 0}
-  m_IndirectSpecularColor: {r: 0.0008234865, g: 0.0042330725, b: 0.02040768, a: 1}
+  m_IndirectSpecularColor: {r: 0.0006960027, g: 0.003576889, b: 0.017243972, a: 0.845}
   m_UseRadianceAmbientProbe: 0
 --- !u!157 &3
 LightmapSettings:
@@ -614,7 +614,7 @@ Camera:
     width: 1
     height: 1
   near clip plane: 0.3
-  far clip plane: 1000
+  far clip plane: 2000
   field of view: 60
   orthographic: 0
   orthographic size: 5
@@ -1115,7 +1115,7 @@ MonoBehaviour:
   generator: {fileID: 1618867861}
   runner: {fileID: 613095877}
   pointPrefab: {fileID: 7333834630013087939, guid: 3d8e9c258015ef542a8e0b305c256897, type: 3}
-  scoreManager: {fileID: 0}
+  scoreManager: {fileID: 1716693695}
   spawnStart: 30
   spawnUpTo: 160
   despawnBehind: 2
@@ -2017,6 +2017,7 @@ GameObject:
   - component: {fileID: 385357664}
   - component: {fileID: 385357663}
   - component: {fileID: 385357662}
+  - component: {fileID: 385357666}
   m_Layer: 0
   m_Name: Floor
   m_TagString: Untagged
@@ -2104,14 +2105,28 @@ Transform:
   m_PrefabAsset: {fileID: 0}
   m_GameObject: {fileID: 385357661}
   serializedVersion: 2
-  m_LocalRotation: {x: 0.0015895969, y: -0.00843079, z: -0.0016028099, w: 0.9999619}
+  m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
   m_LocalPosition: {x: 0, y: -50, z: 0}
   m_LocalScale: {x: 1000, y: 1000, z: 1000}
   m_ConstrainProportionsScale: 1
   m_Children:
   - {fileID: 2029651041}
   m_Father: {fileID: 0}
-  m_LocalEulerAnglesHint: {x: 0.181, y: -0.966, z: -0.185}
+  m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
+--- !u!114 &385357666
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 385357661}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 75692c685b7324f4e86572f5a2ab4fd5, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: 
+  player: {fileID: 613095875}
+  fixedY: -50
 --- !u!4 &386919467 stripped
 Transform:
   m_CorrespondingSourceObject: {fileID: 3451417522285060931, guid: 066ac97be4361784a86d3cdd837d5c07, type: 3}
@@ -5203,7 +5218,6 @@ GameObject:
   m_Component:
   - component: {fileID: 816586933}
   - component: {fileID: 816586932}
-  - component: {fileID: 816586931}
   - component: {fileID: 816586930}
   m_Layer: 0
   m_Name: TransitionCamera
@@ -5256,14 +5270,6 @@ MonoBehaviour:
     m_MipBias: 0
     m_VarianceClampScale: 0.9
     m_ContrastAdaptiveSharpening: 0
---- !u!81 &816586931
-AudioListener:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 816586929}
-  m_Enabled: 1
 --- !u!20 &816586932
 Camera:
   m_ObjectHideFlags: 0
