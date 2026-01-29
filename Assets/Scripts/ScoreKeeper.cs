@@ -131,6 +131,11 @@ public class ScoreManager : MonoBehaviour
         multiplier = 1;
         passiveRemainder = 0f;
 
+        if (totalScoreTween != null)
+            totalScoreTween.SetInstant(0);
+        if (multResultTween != null)
+            multResultTween.SetInstant(0);
+
         RefreshAllUI();
     }
 
