@@ -8,6 +8,14 @@ public class GameplaySimulator : MonoBehaviour
     private bool paused;
     private bool gameplayActive;
 
+    void Awake()
+    {
+        if (!scoreManager)
+            scoreManager = FindObjectOfType<ScoreManager>();
+        if (!uiManager)
+            uiManager = FindObjectOfType<UIManager>();
+    }
+
     void Start()
     {
         paused = false;
@@ -81,34 +89,33 @@ public class GameplaySimulator : MonoBehaviour
 
     // Pause
 
-    void TogglePause()
+    public void TogglePause()
     {
-        if (!gameplayActive) return;
-
         if (paused)
             ResumeFromPause();
         else
             EnterPause();
     }
 
-    void EnterPause()
+    public void EnterPause()
     {
+        if (paused) return;
         paused = true;
-        scoreManager.StopScoring();
+        scoreManager?.StopScoring();
         Time.timeScale = 0f;
 
-        uiManager.NotifyPaused();
+        uiManager?.NotifyPaused();
     }
 
     public void ResumeFromPause()
     {
+        if (!paused) return;
         paused = false;
         Time.timeScale = 1f;
 
-        if (gameplayActive)
-            scoreManager.StartScoring();
+        scoreManager?.StartScoring();
 
-        uiManager.NotifyResumed();
+        uiManager?.NotifyResumed();
     }
 
 }

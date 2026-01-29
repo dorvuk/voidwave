@@ -70,6 +70,13 @@ public class UIManager : MonoBehaviour
 
     void Start()
     {
+        if (!gameplaySimulator)
+            gameplaySimulator = FindObjectOfType<GameplaySimulator>();
+        if (!gameStateManager)
+            gameStateManager = FindObjectOfType<GameStateManager>();
+        if (!scoreManager)
+            scoreManager = FindObjectOfType<ScoreManager>();
+
         InitCanvas(mainMenu, true);
         InitCanvas(gameplay, false);
         InitCanvas(gameOver, false);
@@ -226,6 +233,21 @@ public class UIManager : MonoBehaviour
 
     private void OnEscape()
     {
+        if (gameStateManager != null)
+        {
+            if (gameStateManager.CurrentState == GameStateManager.GameState.Playing)
+            {
+                TogglePauseFromGameplay();
+                return;
+            }
+
+            if (gameStateManager.CurrentState == GameStateManager.GameState.Paused)
+            {
+                ResumeFromPause();
+                return;
+            }
+        }
+
         switch (state)
         {
             case UIState.MainMenu_Intro:
@@ -246,25 +268,33 @@ public class UIManager : MonoBehaviour
             case UIState.Pause:
                 ResumeFromPause();
                 break;
+
+            case UIState.Gameplay:
+                TogglePauseFromGameplay();
+                break;
         }
     }
 
     //  GamePlay API
 
-    public void NotifyPaused()
+    public void NotifyPaused(bool force = false)
     {
-        if (state == UIState.Gameplay) {
-            AudioManager.I.SetPausedAudio(true);
-            TransitionTo(UIState.Pause);
-        }
+        if (!force && state != UIState.Gameplay)
+            return;
+
+        Time.timeScale = 0f;
+        AudioManager.I.SetPausedAudio(true);
+        TransitionTo(UIState.Pause);
     }
 
-    public void NotifyResumed()
+    public void NotifyResumed(bool force = false)
     {
-        if (state == UIState.Pause) {
-            AudioManager.I.SetPausedAudio(false);
-            TransitionTo(UIState.Gameplay);
-        }
+        if (!force && state != UIState.Pause)
+            return;
+
+        Time.timeScale = 1f;
+        AudioManager.I.SetPausedAudio(false);
+        TransitionTo(UIState.Gameplay);
     }
 
     // Game hooks 
@@ -299,6 +329,7 @@ public class UIManager : MonoBehaviour
 
     public void ReturnToMainMenu()
     {
+        Time.timeScale = 1f;
         StopGameOverReturn();
 
         SetCanvasActive(gameOver, false);
@@ -317,13 +348,18 @@ public class UIManager : MonoBehaviour
 
     public void RequestReturnToMenu()
     {
+        if (Time.timeScale == 0f)
+            Time.timeScale = 1f;
         AudioManager.I.SetPausedAudio(false);
         AudioManager.I?.PlaySfx(SfxId.Surface);
         
         if (gameStateManager != null)
-            gameStateManager.OnRestartPressed();
-        else
-            ReturnToMainMenu();
+        {
+            gameStateManager.ReturnToSurface();
+            return;
+        }
+
+        ReturnToMainMenu();
     }
 
     // Pause buttons
@@ -331,13 +367,50 @@ public class UIManager : MonoBehaviour
     public void ResumeFromPause()
     {
         //gameplaySimulator?.SendMessage("ResumeFromPause", SendMessageOptions.DontRequireReceiver);
-        gameplaySimulator.ResumeFromPause();
+        if (gameStateManager != null)
+        {
+            gameStateManager.ResumeGame();
+            return;
+        }
+
+        if (gameplaySimulator != null)
+        {
+            gameplaySimulator.ResumeFromPause();
+            return;
+        }
+
+        NotifyResumed();
     }
 
     public void QuitToMenuFromPause()
     {
+        if (gameStateManager != null)
+        {
+            gameStateManager.ReturnToMenuImmediate();
+            return;
+        }
+
         gameplaySimulator?.EndGameplay();
+        if (gameplaySimulator == null)
+            Time.timeScale = 1f;
         ReturnToMainMenu();
+    }
+
+    void TogglePauseFromGameplay()
+    {
+        if (gameStateManager != null)
+        {
+            gameStateManager.TogglePause();
+            return;
+        }
+
+        if (gameplaySimulator != null)
+        {
+            gameplaySimulator.TogglePause();
+            return;
+        }
+
+        NotifyPaused();
     }
 
     // Buttons (menu) 
@@ -461,7 +534,7 @@ public class UIManager : MonoBehaviour
         AudioManager.I?.PlayMusic(MusicTrack.EndGameTheme);
         AudioManager.I?.PlaySfx(SfxId.Death);
 
-        yield return new WaitForSecondsRealtime(4f);
+        yield return new WaitForSecondsRealtime(2f);
 
         SetCanvasActive(pause, false);
         SetCanvasActive(gameplay, false);
@@ -499,7 +572,7 @@ public class UIManager : MonoBehaviour
 
     private IEnumerator ReturnToMenuAfterDelay()
     {
-        yield return new WaitForSecondsRealtime(10f);
+        yield return new WaitForSecondsRealtime(30f);
 
         if (state == UIState.GameOver)
         {

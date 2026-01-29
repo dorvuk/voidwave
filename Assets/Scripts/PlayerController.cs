@@ -29,6 +29,10 @@ public class PlayerController : MonoBehaviour
     public string diveTrigger = "";
     public string hitTrigger = "";
 
+    [Header("Animation Parameters")]
+    public string livesParam = "lives";
+    public string oneLifeParam = "isOneLife";
+
     [Header("Swim Rotation")]
     public Vector3 swimRotationOffset = new Vector3(-90f, 0f, 0f);
 
@@ -60,6 +64,8 @@ public class PlayerController : MonoBehaviour
         {
             playerHealth.OnDamaged += HandleDamaged;
             playerHealth.OnDeath += HandleDeath;
+            playerHealth.OnHealthChanged += HandleHealthChanged;
+            HandleHealthChanged(playerHealth.currentHealth, playerHealth.maxHealth, playerHealth.RegenProgress);
         }
 
         if (trackRunner != null)
@@ -72,6 +78,7 @@ public class PlayerController : MonoBehaviour
         {
             playerHealth.OnDamaged -= HandleDamaged;
             playerHealth.OnDeath -= HandleDeath;
+            playerHealth.OnHealthChanged -= HandleHealthChanged;
         }
 
         if (trackRunner != null)
@@ -105,6 +112,17 @@ public class PlayerController : MonoBehaviour
     void HandleDeath()
     {
         PlayDeath();
+    }
+
+    void HandleHealthChanged(int current, int max, float _)
+    {
+        if (!animator) return;
+
+        if (!string.IsNullOrWhiteSpace(livesParam) && HasParameter(livesParam, AnimatorControllerParameterType.Int))
+            animator.SetInteger(livesParam, current);
+
+        if (!string.IsNullOrWhiteSpace(oneLifeParam) && HasParameter(oneLifeParam, AnimatorControllerParameterType.Bool))
+            animator.SetBool(oneLifeParam, current == 1 && max > 1);
     }
 
     void HandleObstacleHit(Obstacle _)

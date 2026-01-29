@@ -38,7 +38,7 @@ RenderSettings:
   m_ReflectionIntensity: 1
   m_CustomReflection: {fileID: 0}
   m_Sun: {fileID: 0}
-  m_IndirectSpecularColor: {r: 0.0008231749, g: 0.0042318846, b: 0.020401195, a: 1}
+  m_IndirectSpecularColor: {r: 0.00082360633, g: 0.0042329645, b: 0.020407062, a: 1}
   m_UseRadianceAmbientProbe: 0
 --- !u!157 &3
 LightmapSettings:
@@ -2725,7 +2725,7 @@ Transform:
   m_GameObject: {fileID: 441889327}
   serializedVersion: 2
   m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
-  m_LocalPosition: {x: 0, y: 0, z: 0}
+  m_LocalPosition: {x: 0, y: -0.65, z: 0}
   m_LocalScale: {x: 1, y: 1, z: 1}
   m_ConstrainProportionsScale: 0
   m_Children: []
@@ -2954,7 +2954,7 @@ MonoBehaviour:
       m_Calls:
       - m_Target: {fileID: 0}
         m_TargetAssemblyTypeName: UIManager, Assembly-CSharp
-        m_MethodName: ReturnToMainMenu
+        m_MethodName: RequestReturnToMenu
         m_Mode: 1
         m_Arguments:
           m_ObjectArgument: {fileID: 0}
@@ -8312,7 +8312,7 @@ MonoBehaviour:
   - {fileID: 211679379}
   resettableSystems: []
   startDelay: 0.75
-  surfaceDuration: 1.5
+  surfaceDuration: 2.5
   transitionMoveEasing: 1
   cameraBlendDuration: 1
 --- !u!4 &1463158209

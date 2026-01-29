@@ -187,7 +187,17 @@ public class TrackRunner : MonoBehaviour, IRunResettable
     void OnControllerColliderHit(ControllerColliderHit hit)
     {
         var obstacle = hit.collider.GetComponentInParent<Obstacle>();
-        if (obstacle)
+        if (obstacle && obstacle.TryConsumeHit())
+        {
+            ObstacleHit?.Invoke(obstacle);
+            Debug.Log($"Hit obstacle at s={obstacle.SGlobal:F1} lane={obstacle.Lane}");
+        }
+    }
+
+    void OnTriggerEnter(Collider other)
+    {
+        var obstacle = other.GetComponentInParent<Obstacle>();
+        if (obstacle && obstacle.TryConsumeHit())
         {
             ObstacleHit?.Invoke(obstacle);
             Debug.Log($"Hit obstacle at s={obstacle.SGlobal:F1} lane={obstacle.Lane}");

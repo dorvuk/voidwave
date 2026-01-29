@@ -10,6 +10,7 @@ public class GameStateManager : MonoBehaviour
         MenuIdle,
         TransitionToPlay,
         Playing,
+        Paused,
         GameOver,
         TransitionToMenu
     }
@@ -39,6 +40,16 @@ public class GameStateManager : MonoBehaviour
     public GameObject gameplayCameraGO;
     public Camera transitionCamera;
     public bool useCameraBlend = true;
+    [SerializeField] FollowCam gameplayFollowCam;
+
+    [Header("Ocean Fade")]
+    [SerializeField] GameObject oceanRoot;
+    public float oceanFadeOutDuration = 1.0f;
+    public float oceanFadeInDuration = 1.0f;
+    [Tooltip("Start fading the ocean back in when the player is this close to the surface height.")]
+    public float surfaceFadeStartDistance = 15f;
+    [Range(0f, 1f)]
+    public float surfaceFadeStartNormalized = 0.75f;
 
     [Header("Camera Focus")]
     public bool focusPlayerDuringBlend = true;
@@ -47,13 +58,26 @@ public class GameStateManager : MonoBehaviour
     [Tooltip("How quickly the transition camera rotates to face the player (degrees per second).")]
     public float focusRotationSpeed = 360f;
 
+    [Header("Surface Camera")]
+    public bool overrideSurfaceCamera = true;
+    public Vector3 surfaceCameraOffset = new Vector3(0f, 2.2f, -6.5f);
+    public float surfaceCameraFollow = 10f;
+    public float surfaceCameraTurn = 12f;
+    public float surfaceCameraLookHeight = 1.2f;
+
     [Header("Player")]
     public Transform playerRoot;
     public Transform menuPose;
+    [Header("Player VFX")]
+    [SerializeField] GameObject playerTrailRoot;
 
     [Header("Surface Transition")]
     [FormerlySerializedAs("tempOceanHeightOffset")]
     public float surfaceHeightOffset = 2f;
+
+    [Header("Return To Surface")]
+    public bool playDeathBeforeSurface = true;
+    public float returnToSurfaceDelay = 1.0f;
 
     [Header("Gameplay Systems")]
     [Tooltip("Systems that should be toggled on only during gameplay (runner, generator, spawners, etc).")]
@@ -70,12 +94,31 @@ public class GameStateManager : MonoBehaviour
     [Tooltip("Blend time between cameras during transitions.")]
     public float cameraBlendDuration = 1.0f;
 
+    [Header("Pause")]
+    public bool allowPause = true;
+
     public GameState CurrentState { get; private set; } = GameState.MenuIdle;
 
     Coroutine transitionRoutine;
     Coroutine cameraBlendRoutine;
     bool isBlendingCamera;
     Vector3 lastDeathPos;
+    FollowCamState followCamState;
+    bool followCamOverridden;
+    Coroutine oceanFadeRoutine;
+    Renderer[] oceanRenderers;
+    float oceanAlpha = 1f;
+
+    struct FollowCamState
+    {
+        public bool useWorldOffset;
+        public bool lookAtTarget;
+        public Vector3 worldOffset;
+        public Vector3 localOffset;
+        public float follow;
+        public float turn;
+        public float lookHeight;
+    }
 
     void OnEnable()
     {
@@ -100,12 +143,16 @@ public class GameStateManager : MonoBehaviour
         if (!cameraFocusTarget && playerRoot)
             cameraFocusTarget = playerRoot;
 
+        ResolveTrailRoot();
+        CacheFollowCam();
+        CacheOcean();
         HookPlayerHealth();
     }
 
     void OnDisable()
     {
         UnhookPlayerHealth();
+        RestoreSurfaceCamera();
     }
 
     void Start()
@@ -146,10 +193,114 @@ public class GameStateManager : MonoBehaviour
         transitionRoutine = StartCoroutine(TransitionToMenuRoutine());
     }
 
+    public void ReturnToSurface()
+    {
+        if (CurrentState == GameState.GameOver)
+        {
+            OnRestartPressed();
+            return;
+        }
+
+        if (CurrentState != GameState.Playing && CurrentState != GameState.Paused)
+        {
+            Debug.LogWarning($"Return to surface pressed while in {CurrentState}, ignoring.", this);
+            return;
+        }
+
+        if (transitionRoutine != null) return;
+        transitionRoutine = StartCoroutine(ReturnToSurfaceRoutine());
+    }
+
+    IEnumerator ReturnToSurfaceRoutine()
+    {
+        if (CurrentState == GameState.Paused)
+        {
+            Time.timeScale = 1f;
+            if (uiManager != null)
+                uiManager.NotifyResumed(true);
+        }
+
+        CurrentState = GameState.TransitionToMenu;
+
+        if (scoreManager != null)
+            scoreManager.StopScoring();
+
+        SetTrailActive(false);
+        SetGameplayBehavioursEnabled(false);
+
+        if (uiManager != null)
+        {
+            uiManager.SetCanvasActive(uiManager.gameplay, false);
+            uiManager.SetCanvasActive(uiManager.pause, false);
+            uiManager.SetCanvasActive(uiManager.gameOver, false);
+        }
+        else
+        {
+            SetUIState(false, false, false);
+        }
+
+        lastDeathPos = playerRoot ? playerRoot.position : Vector3.zero;
+
+        if (playerController != null && playDeathBeforeSurface)
+            playerController.PlayDeath();
+
+        float delay = Mathf.Max(0f, returnToSurfaceDelay);
+        if (delay > 0f)
+            yield return new WaitForSeconds(delay);
+
+        yield return TransitionToMenuRoutine();
+    }
+
+    public void TogglePause()
+    {
+        if (!allowPause) return;
+
+        if (CurrentState == GameState.Playing)
+            PauseGame();
+        else if (CurrentState == GameState.Paused)
+            ResumeGame();
+    }
+
+    public void PauseGame()
+    {
+        if (CurrentState != GameState.Playing) return;
+
+        CurrentState = GameState.Paused;
+        Time.timeScale = 0f;
+
+        if (scoreManager != null)
+            scoreManager.StopScoring();
+
+        if (uiManager != null)
+            uiManager.NotifyPaused(true);
+    }
+
+    public void ResumeGame()
+    {
+        if (CurrentState != GameState.Paused) return;
+
+        CurrentState = GameState.Playing;
+        Time.timeScale = 1f;
+
+        if (scoreManager != null)
+            scoreManager.StartScoring();
+
+        if (uiManager != null)
+            uiManager.NotifyResumed(true);
+    }
+
+    public void ReturnToMenuImmediate()
+    {
+        Time.timeScale = 1f;
+        ForceMenuState();
+    }
+
     public void OnPlayerDied()
     {
         if (CurrentState == GameState.GameOver)
             return;
+
+        Time.timeScale = 1f;
 
         if (CurrentState != GameState.Playing)
         {
@@ -162,6 +313,7 @@ public class GameStateManager : MonoBehaviour
         if (scoreManager != null)
             scoreManager.StopScoring();
 
+        SetTrailActive(false);
         SetGameplayBehavioursEnabled(false);
         if (uiManager != null)
             uiManager.GameOver();
@@ -199,6 +351,9 @@ public class GameStateManager : MonoBehaviour
     IEnumerator TransitionToPlayRoutine()
     {
         CurrentState = GameState.TransitionToPlay;
+
+        SetTrailActive(false);
+        FadeOceanTo(0f, oceanFadeOutDuration);
 
         if (useCameraBlend && transitionCamera != null)
             yield return BlendCamera(orbitCameraGO, gameplayCameraGO, cameraBlendDuration);
@@ -256,6 +411,7 @@ public class GameStateManager : MonoBehaviour
         if (playerController != null)
             playerController.PlaySurfing();
 
+        SetTrailActive(true);
         CurrentState = GameState.Playing;
         transitionRoutine = null;
     }
@@ -265,12 +421,14 @@ public class GameStateManager : MonoBehaviour
         CurrentState = GameState.TransitionToMenu;
         SetUIState(false, false, false);
 
+        SetTrailActive(false);
         if (scoreManager != null)
             scoreManager.StopScoring();
 
         if (playerController != null)
             playerController.PlaySwimSurface();
 
+        ApplySurfaceCamera();
         // Keep gameplay view during the swim up (no blend on return).
         SwitchToGameplayCamera();
 
@@ -280,6 +438,9 @@ public class GameStateManager : MonoBehaviour
         Vector3 startPos = playerRoot ? playerRoot.position : surfacePos;
         Quaternion startRot = playerRoot ? playerRoot.rotation : Quaternion.identity;
         Quaternion targetRot = menuPose ? menuPose.rotation : Quaternion.identity;
+        float fadeStartTime = duration * Mathf.Clamp01(surfaceFadeStartNormalized);
+        float fadeStartHeight = surfacePos.y - Mathf.Max(0f, surfaceFadeStartDistance);
+        bool oceanFadeStarted = false;
 
         if (playerRoot)
         {
@@ -291,6 +452,16 @@ public class GameStateManager : MonoBehaviour
                 u = EaseMove(u);
                 playerRoot.position = Vector3.Lerp(startPos, surfacePos, u);
                 playerRoot.rotation = Quaternion.Slerp(startRot, targetRot, u);
+                if (!oceanFadeStarted)
+                {
+                    bool byTime = t >= fadeStartTime;
+                    bool byHeight = surfaceFadeStartDistance > 0f && playerRoot.position.y >= fadeStartHeight;
+                    if (byTime || byHeight)
+                    {
+                        FadeOceanTo(1f, oceanFadeInDuration);
+                        oceanFadeStarted = true;
+                    }
+                }
                 yield return null;
             }
 
@@ -299,9 +470,18 @@ public class GameStateManager : MonoBehaviour
         }
         else
         {
-            yield return new WaitForSeconds(duration);
+            if (fadeStartTime > 0f)
+                yield return new WaitForSeconds(fadeStartTime);
+            FadeOceanTo(1f, oceanFadeInDuration);
+            oceanFadeStarted = true;
+            float remaining = Mathf.Max(0f, duration - fadeStartTime);
+            if (remaining > 0f)
+                yield return new WaitForSeconds(remaining);
         }
 
+        if (!oceanFadeStarted)
+            FadeOceanTo(1f, oceanFadeInDuration);
+        RestoreSurfaceCamera();
         HardResetToMenu();
         transitionRoutine = null;
     }
@@ -310,6 +490,9 @@ public class GameStateManager : MonoBehaviour
     {
         bool shouldSyncUI = uiManager != null && CurrentState != GameState.MenuIdle;
 
+        RestoreSurfaceCamera();
+        SetOceanAlpha(1f);
+        SetTrailActive(false);
         SetGameplayBehavioursEnabled(false);
         ResetAllSystems();
         ResetPlayerToMenuPose();
@@ -342,6 +525,7 @@ public class GameStateManager : MonoBehaviour
         if (scoreManager != null)
             scoreManager.StopScoring();
 
+        Time.timeScale = 1f;
         HardResetToMenu();
     }
 
@@ -471,6 +655,211 @@ public class GameStateManager : MonoBehaviour
             return;
         SetCameraActive(orbitCameraGO, false);
         SetCameraActive(gameplayCameraGO, true);
+    }
+
+    void CacheFollowCam()
+    {
+        if (!gameplayFollowCam && gameplayCameraGO)
+            gameplayFollowCam = gameplayCameraGO.GetComponentInParent<FollowCam>();
+        if (!gameplayFollowCam)
+            gameplayFollowCam = FindObjectOfType<FollowCam>();
+    }
+
+    void CacheOcean()
+    {
+        if (!oceanRoot)
+        {
+            var oceanFollow = FindObjectOfType<InfiniteOceanFollow>();
+            if (oceanFollow)
+                oceanRoot = oceanFollow.gameObject;
+            else
+                oceanRoot = GameObject.Find("Ocean");
+        }
+
+        if (oceanRoot)
+            oceanRenderers = oceanRoot.GetComponentsInChildren<Renderer>(true);
+    }
+
+    void ApplySurfaceCamera()
+    {
+        if (!overrideSurfaceCamera) return;
+        if (!gameplayFollowCam) return;
+        if (followCamOverridden) return;
+
+        followCamState = new FollowCamState
+        {
+            useWorldOffset = gameplayFollowCam.useWorldOffset,
+            lookAtTarget = gameplayFollowCam.lookAtTarget,
+            worldOffset = gameplayFollowCam.worldOffset,
+            localOffset = gameplayFollowCam.localOffset,
+            follow = gameplayFollowCam.follow,
+            turn = gameplayFollowCam.turn,
+            lookHeight = gameplayFollowCam.lookHeight
+        };
+
+        gameplayFollowCam.useWorldOffset = true;
+        gameplayFollowCam.lookAtTarget = true;
+        gameplayFollowCam.worldOffset = surfaceCameraOffset;
+        gameplayFollowCam.follow = surfaceCameraFollow;
+        gameplayFollowCam.turn = surfaceCameraTurn;
+        gameplayFollowCam.lookHeight = surfaceCameraLookHeight;
+        followCamOverridden = true;
+    }
+
+    void RestoreSurfaceCamera()
+    {
+        if (!followCamOverridden) return;
+        if (!gameplayFollowCam) return;
+
+        gameplayFollowCam.useWorldOffset = followCamState.useWorldOffset;
+        gameplayFollowCam.lookAtTarget = followCamState.lookAtTarget;
+        gameplayFollowCam.worldOffset = followCamState.worldOffset;
+        gameplayFollowCam.localOffset = followCamState.localOffset;
+        gameplayFollowCam.follow = followCamState.follow;
+        gameplayFollowCam.turn = followCamState.turn;
+        gameplayFollowCam.lookHeight = followCamState.lookHeight;
+        followCamOverridden = false;
+    }
+
+    void FadeOceanTo(float targetAlpha, float duration)
+    {
+        if (oceanRoot == null || oceanRenderers == null || oceanRenderers.Length == 0)
+            CacheOcean();
+        if (oceanRoot == null || oceanRenderers == null || oceanRenderers.Length == 0)
+            return;
+
+        if (oceanFadeRoutine != null)
+            StopCoroutine(oceanFadeRoutine);
+
+        oceanFadeRoutine = StartCoroutine(FadeOceanRoutine(Mathf.Clamp01(targetAlpha), duration));
+    }
+
+    IEnumerator FadeOceanRoutine(float targetAlpha, float duration)
+    {
+        float startAlpha = oceanAlpha;
+        float t = 0f;
+        float d = Mathf.Max(0.01f, duration);
+
+        while (t < d)
+        {
+            t += Time.deltaTime;
+            float u = Mathf.Clamp01(t / d);
+            float a = Mathf.Lerp(startAlpha, targetAlpha, u);
+            SetOceanAlpha(a);
+            yield return null;
+        }
+
+        SetOceanAlpha(targetAlpha);
+        oceanFadeRoutine = null;
+    }
+
+    void SetOceanAlpha(float alpha)
+    {
+        oceanAlpha = Mathf.Clamp01(alpha);
+
+        if (oceanRoot == null || oceanRenderers == null || oceanRenderers.Length == 0)
+            return;
+
+        var block = new MaterialPropertyBlock();
+        for (int i = 0; i < oceanRenderers.Length; i++)
+        {
+            var r = oceanRenderers[i];
+            if (!r) continue;
+
+            var mats = r.sharedMaterials;
+            for (int m = 0; m < mats.Length; m++)
+            {
+                var mat = mats[m];
+                if (!mat) continue;
+
+                bool hasBaseColor = mat.HasProperty("_BaseColor");
+                bool hasColor = mat.HasProperty("_Color");
+                if (!hasBaseColor && !hasColor) continue;
+
+                block.Clear();
+                r.GetPropertyBlock(block, m);
+
+                if (hasBaseColor)
+                {
+                    Color c = mat.GetColor("_BaseColor");
+                    c.a *= oceanAlpha;
+                    block.SetColor("_BaseColor", c);
+                }
+
+                if (hasColor)
+                {
+                    Color c = mat.GetColor("_Color");
+                    c.a *= oceanAlpha;
+                    block.SetColor("_Color", c);
+                }
+
+                r.SetPropertyBlock(block, m);
+            }
+        }
+
+        if (oceanAlpha >= 0.999f)
+            ClearOceanOverrides();
+    }
+
+    void ClearOceanOverrides()
+    {
+        if (oceanRenderers == null) return;
+
+        var block = new MaterialPropertyBlock();
+        for (int i = 0; i < oceanRenderers.Length; i++)
+        {
+            var r = oceanRenderers[i];
+            if (!r) continue;
+
+            var mats = r.sharedMaterials;
+            for (int m = 0; m < mats.Length; m++)
+            {
+                var mat = mats[m];
+                if (!mat) continue;
+
+                bool hasBaseColor = mat.HasProperty("_BaseColor");
+                bool hasColor = mat.HasProperty("_Color");
+                if (!hasBaseColor && !hasColor) continue;
+
+                block.Clear();
+                r.SetPropertyBlock(block, m);
+            }
+        }
+    }
+
+    void ResolveTrailRoot()
+    {
+        if (playerTrailRoot || !playerRoot) return;
+
+        var found = FindChildByName(playerRoot, "VFX_Trail_Ice");
+        if (found)
+            playerTrailRoot = found.gameObject;
+    }
+
+    void SetTrailActive(bool active)
+    {
+        if (!playerTrailRoot) return;
+        if (playerTrailRoot.activeSelf == active) return;
+        playerTrailRoot.SetActive(active);
+    }
+
+    Transform FindChildByName(Transform root, string childName)
+    {
+        if (!root) return null;
+
+        int count = root.childCount;
+        for (int i = 0; i < count; i++)
+        {
+            var child = root.GetChild(i);
+            if (child.name == childName)
+                return child;
+
+            var found = FindChildByName(child, childName);
+            if (found)
+                return found;
+        }
+
+        return null;
     }
 
     IEnumerator BlendCamera(GameObject fromCamGO, GameObject toCamGO, float duration)

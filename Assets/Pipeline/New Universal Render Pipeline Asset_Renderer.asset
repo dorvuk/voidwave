@@ -12,7 +12,7 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 72a8e368ea27e734e937842216ec044f, type: 3}
   m_Name: UnderwaterWobbleEffect
   m_EditorClassIdentifier: 
-  m_Active: 1
+  m_Active: 0
   settings:
     shader: {fileID: 4800000, guid: a4c16e4976270044eb9e7bc6e220a32c, type: 3}
     renderPassEvent: 500
@@ -30,14 +30,14 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 1da1f5b1f37e9b34da4c29c89838dc59, type: 3}
   m_Name: Underwater Effects
   m_EditorClassIdentifier: 
-  m_Active: 0
+  m_Active: 1
   settings:
     material: {fileID: 2100000, guid: d7eff91adf883494db9dbd5fd180ae71, type: 2}
     renderPassEvent: 400
-    color: {r: 0.017354928, g: 0.0913575, b: 0.24528301, a: 0.54509807}
-    distance: 500
+    color: {r: 0, g: 0.32203388, b: 1, a: 0}
+    distance: 700
     alpha: 0
-    refraction: -0.76
+    refraction: 1
     normalmap: {fileID: 2800000, guid: 08ef20a01c156e1428ca81211ca1275d, type: 3}
     UV: {x: 1, y: 1, z: 0.2, w: 0.1}
 --- !u!114 &11400000

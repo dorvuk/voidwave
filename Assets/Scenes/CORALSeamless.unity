@@ -3105,7 +3105,7 @@ MonoBehaviour:
   - {fileID: 1094333611}
   resettableSystems: []
   startDelay: 0.75
-  surfaceDuration: 1.5
+  surfaceDuration: 2.5
   transitionMoveEasing: 1
 --- !u!4 &1463158209
 Transform:
