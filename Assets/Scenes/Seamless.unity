@@ -38,7 +38,7 @@ RenderSettings:
   m_ReflectionIntensity: 0.845
   m_CustomReflection: {fileID: 0}
   m_Sun: {fileID: 0}
-  m_IndirectSpecularColor: {r: 0.00069588807, g: 0.0035768205, b: 0.01724396, a: 0.845}
+  m_IndirectSpecularColor: {r: 0.55784976, g: 0.5941158, b: 0.58760494, a: 0.845}
   m_UseRadianceAmbientProbe: 0
 --- !u!157 &3
 LightmapSettings:
@@ -3650,7 +3650,8 @@ MonoBehaviour:
     m_PersistentCalls:
       m_Calls: []
   m_text: "Developers:\nDoris Martinovi\u0107\nKarla Pi\u0161oni\u0107\nMarijan Tadijal\nDorian
-    Vuk\n\nMade for FER Fundementals of Digital Game Development course (ORDI)\n\nAssets:"
+    Vuk\n\nMade for Fundementals of Digital Game Development\nFER, University of
+    Zagreb\n\nAssets:"
   m_isRightToLeft: 0
   m_fontAsset: {fileID: 11400000, guid: e76c62a5a514fb24686e94ae51d66b6b, type: 2}
   m_sharedMaterial: {fileID: 7108058922504438224, guid: e76c62a5a514fb24686e94ae51d66b6b, type: 2}
@@ -6839,7 +6840,11 @@ MonoBehaviour:
     by julius_galla \r\nriver close small waves 150 PM 220804_0477 by klankbeeld
     \r\nBig waves breaking and splashing against groyne by chris_dagorne\r\nsplash
     body dive into water pool.flac by kyles\r\nSFX_Submerge by Perel\r\nwater_bubbles_in_bottle.wav
-    by j1987\r\nglug_glug_glug.wav by noisymichael"
+    by j1987\r\nglug_glug_glug.wav by noisymichael\nLowPoly-Animals by Backrock Studios\nBTM_Assets
+    by BenjaTheMaker\nLowPoly Water by Ebru Dogan\nNature Environment Low poly Pack
+    by Pandazole\nUnderwater Effects by Parrot222\nQuirky Series FREE Pack by Omabuarts
+    Studio\nSkybox Series Free by Avionx\nTrails VFX by Vefects\nYughues Free Sand
+    Materials by Nobiax / Yughues"
   m_isRightToLeft: 0
   m_fontAsset: {fileID: 11400000, guid: ecfaf5281878ed242ba31e5f057d3670, type: 2}
   m_sharedMaterial: {fileID: 440240570695324440, guid: ecfaf5281878ed242ba31e5f057d3670, type: 2}
@@ -6866,8 +6871,8 @@ MonoBehaviour:
   m_faceColor:
     serializedVersion: 2
     rgba: 4294967295
-  m_fontSize: 32
-  m_fontSizeBase: 32
+  m_fontSize: 25
+  m_fontSizeBase: 25
   m_fontWeight: 400
   m_enableAutoSizing: 0
   m_fontSizeMin: 18
@@ -7348,6 +7353,8 @@ MonoBehaviour:
   menuPose: {fileID: 868488972}
   playerTrailRoot: {fileID: 649675662}
   surfaceHeightOffset: 100
+  playDeathBeforeSurface: 1
+  returnToSurfaceDelay: 1
   gameplayBehavioursToEnable:
   - {fileID: 1618867860}
   - {fileID: 613095877}

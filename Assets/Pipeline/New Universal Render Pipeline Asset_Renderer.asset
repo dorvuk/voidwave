@@ -30,7 +30,7 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 1da1f5b1f37e9b34da4c29c89838dc59, type: 3}
   m_Name: Underwater Effects
   m_EditorClassIdentifier: 
-  m_Active: 1
+  m_Active: 0
   settings:
     material: {fileID: 2100000, guid: d7eff91adf883494db9dbd5fd180ae71, type: 2}
     renderPassEvent: 400

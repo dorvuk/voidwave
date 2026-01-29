@@ -4,5 +4,8 @@
 EditorBuildSettings:
   m_ObjectHideFlags: 0
   serializedVersion: 2
-  m_Scenes: []
+  m_Scenes:
+  - enabled: 1
+    path: Assets/Scenes/Seamless.unity
+    guid: d446fc3c1c17eb44ca4a2aba83db57d4
   m_configObjects: {}
